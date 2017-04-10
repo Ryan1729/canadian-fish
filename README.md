@@ -2,6 +2,19 @@
 
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
+##TODO
+-> deal out hands to all players
+-> draw the player's entire hand
+-> implement asking for a card
+  -> menus
+    -> opponent selection
+    -> suit selection
+    -> value selection
+  -> checking opponent's hand for card
+    -> display answer
+  -> moving card to player's hand
+
+
 ## Installation for Compilation
 
 This program relies on `libBearLibTerminal.so` so that should be copied into `usr/local/lib` or another folder indicated by this command: `ldconfig -v 2>/dev/null | grep -v ^$'\t'`
