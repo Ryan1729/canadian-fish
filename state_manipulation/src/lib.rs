@@ -2,6 +2,8 @@ extern crate rand;
 extern crate common;
 
 use common::*;
+use common::Suit::*;
+use common::Value::*;
 
 use rand::{StdRng, SeedableRng, Rng};
 
@@ -26,11 +28,19 @@ pub fn new_state(size: Size) -> State {
     State {
         rng: rng,
         title_screen: false,
-        x: 0,
-        row: row,
+        deck: Deck::new(),
+        player: vec![Card {
+                         location: Point { x: 20, y: 10 },
+                         value: Two,
+                         suit: Hearts,
+                     }],
+        teammate_1: Hand::new(),
+        teammate_2: Hand::new(),
+        opponent_1: Hand::new(),
+        opponent_2: Hand::new(),
+        opponent_3: Hand::new(),
     }
 }
-
 #[cfg(not(debug_assertions))]
 #[no_mangle]
 pub fn new_state(size: Size) -> State {
@@ -51,8 +61,13 @@ pub fn new_state(size: Size) -> State {
     State {
         rng: rng,
         title_screen: true,
-        x: 0,
-        row: row,
+        deck: Deck::new(),
+        player: Hand::new(),
+        teammate_1: Hand::new(),
+        teammate_2: Hand::new(),
+        opponent_1: Hand::new(),
+        opponent_2: Hand::new(),
+        opponent_3: Hand::new(),
     }
 }
 
@@ -70,9 +85,6 @@ pub fn update_and_render(platform: &Platform, state: &mut State, events: &mut Ve
                 _ => (),
             }
         }
-
-        state.x += 1;
-        state.x %= 80;
 
         draw(platform, state);
 
@@ -96,18 +108,6 @@ pub fn game_update_and_render(platform: &Platform,
         }
     }
 
-    state.x += 1;
-    state.x %= 80;
-
-    let len = state.row.len();
-    state.row[state.x as usize % len] = state.rng.gen::<u8>();
-
-    for i in 0..len {
-        let c = state.row[i];
-
-        (platform.print_xy)(i as i32, 16, &c.to_string());
-    }
-
     draw(platform, state);
 
     false
@@ -124,13 +124,74 @@ fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Eve
 }
 
 fn draw(platform: &Platform, state: &State) {
-    //Demo:
-    //1. Run `cargo run` in the folder containing the `state_manipulation` folder
-    //   Leave the windoe open.
-    //2. Change this string and save the file.
-    //3. Run `cargo build` in the `state_manipulation` folder.
-    //4. See that the string has changed in the running  program!
-    (platform.print_xy)(34, 14, "Hello World!");
+    for card in state.player.iter() {
+        draw_card(platform, card)
+    }
+}
 
-    (platform.print_xy)(state.x, 15, "‾");
+const CARD_WIDTH: i32 = 16;
+const CARD_HEIGHT: i32 = 12;
+
+const CARD_MOUSE_X_OFFSET: i32 = -CARD_WIDTH / 2;
+const CARD_MOUSE_Y_OFFSET: i32 = 0;
+
+
+fn draw_card(platform: &Platform, card: &Card) {
+    draw_card_at(platform, card.location, card);
+}
+
+fn draw_card_at(platform: &Platform, location: Point, card: &Card) {
+    let x = location.x;
+    let y = location.y;
+
+    draw_rect(platform, x, y, CARD_WIDTH, CARD_HEIGHT);
+
+    (platform.print_xy)(x + 1, y + 1, &card.value.to_string());
+    (platform.print_xy)(x + 1, y + 2, &card.suit.to_string());
+}
+
+
+
+fn draw_rect(platform: &Platform, x: i32, y: i32, w: i32, h: i32) {
+    draw_rect_with(platform,
+                   x,
+                   y,
+                   w,
+                   h,
+                   ["┌", "─", "┐", "│", "│", "└", "─", "┘"]);
+}
+
+fn draw_double_line_rect(platform: &Platform, x: i32, y: i32, w: i32, h: i32) {
+    draw_rect_with(platform,
+                   x,
+                   y,
+                   w,
+                   h,
+                   ["╔", "═", "╗", "║", "║", "╚", "═", "╝"]);
+}
+
+fn draw_rect_with(platform: &Platform, x: i32, y: i32, w: i32, h: i32, edges: [&str; 8]) {
+    (platform.clear)(Some(Rect::from_values(x, y, w, h)));
+
+    let right = x + w - 1;
+    let bottom = y + h - 1;
+    // top
+    (platform.print_xy)(x, y, edges[0]);
+    for i in (x + 1)..right {
+        (platform.print_xy)(i, y, edges[1]);
+    }
+    (platform.print_xy)(right, y, edges[2]);
+
+    // sides
+    for i in (y + 1)..bottom {
+        (platform.print_xy)(x, i, edges[3]);
+        (platform.print_xy)(right, i, edges[4]);
+    }
+
+    //bottom
+    (platform.print_xy)(x, bottom, edges[5]);
+    for i in (x + 1)..right {
+        (platform.print_xy)(i, bottom, edges[6]);
+    }
+    (platform.print_xy)(right, bottom, edges[7]);
 }

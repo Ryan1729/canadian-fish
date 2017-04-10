@@ -25,12 +25,85 @@ pub struct Platform {
 pub struct State {
     pub rng: StdRng,
     pub title_screen: bool,
-    pub x: i32,
-    pub row: Vec<u8>,
+    pub deck: Deck,
+    pub player: Hand,
+    pub teammate_1: Hand,
+    pub teammate_2: Hand,
+    pub opponent_1: Hand,
+    pub opponent_2: Hand,
+    pub opponent_3: Hand,
+}
+
+pub type Deck = Vec<Card>;
+pub type Hand = Vec<Card>;
+
+pub struct Card {
+    pub location: Point,
+    pub suit: Suit,
+    pub value: Value,
+}
+
+#[derive(Debug)]
+pub enum Suit {
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades,
+}
+use Suit::*;
+
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{}",
+               match *self {
+                   Clubs => "♣".to_string(),
+                   Diamonds => "♦".to_string(),
+                   Hearts => "♥".to_string(),
+                   Spades => "♠".to_string(),
+               })
+    }
 }
 
 
+#[derive(Debug)]
+pub enum Value {
+    Ace,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    //Eight, //Canadian Fish doesn't use the Eights
+    Nine,
+    Ten,
+    Jack,
+    Queen,
+    King,
+}
+use Value::*;
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{}",
+               match *self {
+                   Ace => "A".to_string(),
+                   Two => "2".to_string(),
+                   Three => "3".to_string(),
+                   Four => "4".to_string(),
+                   Five => "5".to_string(),
+                   Six => "6".to_string(),
+                   Seven => "7".to_string(),
+                   Nine => "9".to_string(),
+                   Ten => "10".to_string(),
+                   Jack => "J".to_string(),
+                   Queen => "Q".to_string(),
+                   King => "K".to_string(),
+               })
+    }
+}
 
 
 

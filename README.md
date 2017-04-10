@@ -1,4 +1,6 @@
-This is a template to make it easy to get started with live code reloading using BearLibTerminal.
+# Canadian Fish
+
+This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
 ## Installation for Compilation
 
@@ -17,5 +19,5 @@ Comment out the line containing `crate-type = ["dylib"]` in the `Cargo.toml` in 
 Run `cargo build --release` then copy the exe in `./target/release` to the desired location as well as the following :
 
 * a copy of the precompiled `BearLibTerminal.dll` and `BearLibTerminal.lib`.
-* the `state_manipulation.dll` in `./target/release/deps` 
+* the `state_manipulation.dll` in `./target/release/deps`
 * any necessary assets (graphics, sound, etc.).
