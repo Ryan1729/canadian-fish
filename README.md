@@ -3,8 +3,6 @@
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
 ##TODO
--> deal out hands to all players
--> draw the player's entire hand
 -> implement asking for a card
   -> menus
     -> opponent selection

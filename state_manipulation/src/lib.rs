@@ -25,20 +25,34 @@ pub fn new_state(size: Size) -> State {
         row.push(rng.gen::<u8>());
     }
 
+    let mut deck = shuffled_deck(&mut rng);
+
+    let mut player = Vec::new();
+    let mut teammate_1 = Vec::new();
+    let mut teammate_2 = Vec::new();
+    let mut opponent_1 = Vec::new();
+    let mut opponent_2 = Vec::new();
+    let mut opponent_3 = Vec::new();
+    for _ in 0..8 {
+        player.push(deck.pop().unwrap());
+        teammate_1.push(deck.pop().unwrap());
+        teammate_2.push(deck.pop().unwrap());
+        opponent_1.push(deck.pop().unwrap());
+        opponent_2.push(deck.pop().unwrap());
+        opponent_3.push(deck.pop().unwrap());
+    }
+
+    set_hand_positions(size.height, &mut player);
+
     State {
         rng: rng,
         title_screen: false,
-        deck: Deck::new(),
-        player: vec![Card {
-                         location: Point { x: 20, y: 10 },
-                         value: Two,
-                         suit: Hearts,
-                     }],
-        teammate_1: Hand::new(),
-        teammate_2: Hand::new(),
-        opponent_1: Hand::new(),
-        opponent_2: Hand::new(),
-        opponent_3: Hand::new(),
+        player: player,
+        teammate_1: teammate_1,
+        teammate_2: teammate_2,
+        opponent_1: opponent_1,
+        opponent_2: opponent_2,
+        opponent_3: opponent_3,
     }
 }
 #[cfg(not(debug_assertions))]
@@ -61,13 +75,70 @@ pub fn new_state(size: Size) -> State {
     State {
         rng: rng,
         title_screen: true,
-        deck: Deck::new(),
         player: Hand::new(),
         teammate_1: Hand::new(),
         teammate_2: Hand::new(),
         opponent_1: Hand::new(),
         opponent_2: Hand::new(),
         opponent_3: Hand::new(),
+    }
+}
+
+fn shuffled_deck(rng: &mut StdRng) -> Deck {
+    let mut deck = Vec::new();
+
+    for &suit in vec![Clubs, Diamonds, Hearts, Spades].iter() {
+        for &value in vec![Ace,
+                           Two,
+                           Three,
+                           Four,
+                           Five,
+                           Six,
+                           Seven,
+                           //Eight, //Canadian Fish doesn't use the Eights
+                           Nine,
+                           Ten,
+                           Jack,
+                           Queen,
+                           King]
+                    .iter() {
+            deck.push(Card {
+                          location: Point { x: 0, y: 0 },
+                          suit: suit,
+                          value: value,
+                      });
+        }
+    }
+
+    rng.shuffle(&mut deck);
+
+    deck
+}
+
+const CARD_OFFSET: i32 = 2;
+const CARD_OFFSET_DELTA: i32 = 6;
+
+const HAND_HEIGHT_OFFSET: i32 = 8;
+
+fn set_hand_positions(height: i32, hand: &mut Hand) {
+    let mut offset = CARD_OFFSET;
+    for card in hand.iter_mut() {
+        card.location.x = offset;
+        card.location.y = hand_height(height);
+
+        offset += CARD_OFFSET_DELTA;
+    }
+}
+
+pub fn hand_height(height: i32) -> i32 {
+    height - HAND_HEIGHT_OFFSET
+}
+
+fn collect_hand(cards: &mut Vec<Card>) {
+    let mut offset = CARD_OFFSET;
+    for card in cards.iter_mut() {
+        card.location.x = offset;
+        offset += CARD_OFFSET_DELTA;
     }
 }
 

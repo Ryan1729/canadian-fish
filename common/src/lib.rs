@@ -25,7 +25,6 @@ pub struct Platform {
 pub struct State {
     pub rng: StdRng,
     pub title_screen: bool,
-    pub deck: Deck,
     pub player: Hand,
     pub teammate_1: Hand,
     pub teammate_2: Hand,
@@ -43,7 +42,7 @@ pub struct Card {
     pub value: Value,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -66,7 +65,7 @@ impl fmt::Display for Suit {
 }
 
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Value {
     Ace,
     Two,
