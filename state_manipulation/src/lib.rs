@@ -4,6 +4,7 @@ extern crate common;
 use common::*;
 use common::Suit::*;
 use common::Value::*;
+use common::MenuState::*;
 
 use rand::{StdRng, SeedableRng, Rng};
 
@@ -19,41 +20,7 @@ pub fn new_state(size: Size) -> State {
     let seed: &[_] = &[42];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let mut row = Vec::new();
-
-    for _ in 0..size.width {
-        row.push(rng.gen::<u8>());
-    }
-
-    let mut deck = shuffled_deck(&mut rng);
-
-    let mut player = Vec::new();
-    let mut teammate_1 = Vec::new();
-    let mut teammate_2 = Vec::new();
-    let mut opponent_1 = Vec::new();
-    let mut opponent_2 = Vec::new();
-    let mut opponent_3 = Vec::new();
-    for _ in 0..8 {
-        player.push(deck.pop().unwrap());
-        teammate_1.push(deck.pop().unwrap());
-        teammate_2.push(deck.pop().unwrap());
-        opponent_1.push(deck.pop().unwrap());
-        opponent_2.push(deck.pop().unwrap());
-        opponent_3.push(deck.pop().unwrap());
-    }
-
-    set_hand_positions(size.height, &mut player);
-
-    State {
-        rng: rng,
-        title_screen: false,
-        player: player,
-        teammate_1: teammate_1,
-        teammate_2: teammate_2,
-        opponent_1: opponent_1,
-        opponent_2: opponent_2,
-        opponent_3: opponent_3,
-    }
+    make_state(size, false, rng)
 }
 #[cfg(not(debug_assertions))]
 #[no_mangle]
@@ -68,19 +35,44 @@ pub fn new_state(size: Size) -> State {
     let seed: &[_] = &[timestamp as usize];
     let rng: StdRng = SeedableRng::from_seed(seed);
 
-    for _ in 0..size.width {
-        row.push(rng.gen::<u8>());
+    make_state(size, true, rng)
+}
+
+fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
+    let mut deck = shuffled_deck(&mut rng);
+
+    let mut player = Vec::new();
+    let mut teammate_1 = Vec::new();
+    let mut teammate_2 = Vec::new();
+    let mut opponent_1 = Vec::new();
+    let mut opponent_2 = Vec::new();
+    let mut opponent_3 = Vec::new();
+    for _ in 0..8 {
+        player.push(deck.pop().unwrap());
+        opponent_1.push(deck.pop().unwrap());
+        teammate_1.push(deck.pop().unwrap());
+        opponent_2.push(deck.pop().unwrap());
+        teammate_2.push(deck.pop().unwrap());
+        opponent_3.push(deck.pop().unwrap());
     }
+
+    set_hand_positions(size.height, &mut player);
 
     State {
         rng: rng,
-        title_screen: true,
-        player: Hand::new(),
-        teammate_1: Hand::new(),
-        teammate_2: Hand::new(),
-        opponent_1: Hand::new(),
-        opponent_2: Hand::new(),
-        opponent_3: Hand::new(),
+        title_screen: title_screen,
+        player: player,
+        teammate_1: teammate_1,
+        teammate_2: teammate_2,
+        opponent_1: opponent_1,
+        opponent_2: opponent_2,
+        opponent_3: opponent_3,
+        menu_state: Main,
+        ui_context: UIContext {
+            hot: 0,
+            active: 0,
+            next_hot: 0,
+        },
     }
 }
 
@@ -169,14 +161,42 @@ pub fn game_update_and_render(platform: &Platform,
                               state: &mut State,
                               events: &mut Vec<Event>)
                               -> bool {
+    let mut left_mouse_pressed = false;
+    let mut left_mouse_released = false;
+
     for event in events {
         cross_mode_event_handling(platform, state, event);
 
         match *event {
+            Event::KeyPressed { key: KeyCode::MouseLeft, ctrl: _, shift: _ } => {
+                left_mouse_pressed = true;
+            }
+            Event::KeyReleased { key: KeyCode::MouseLeft, ctrl: _, shift: _ } => {
+                left_mouse_released = true;
+            }
             Event::Close |
             Event::KeyPressed { key: KeyCode::Escape, ctrl: _, shift: _ } => return true,
             _ => (),
         }
+    }
+
+    let size = (platform.size)();
+
+    draw_double_line_rect(platform,
+                          MENU_OFFSET,
+                          MENU_TOP_HEIGHT_OFFSET,
+                          size.width - 2 * MENU_OFFSET,
+                          size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET));
+
+    match state.menu_state {
+        Main => {
+            draw_main_menu(platform,
+                           state,
+                           size,
+                           left_mouse_pressed,
+                           left_mouse_released)
+        }
+        _ => {}
     }
 
     draw(platform, state);
@@ -194,10 +214,114 @@ fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Eve
     }
 }
 
+const MENU_OFFSET: i32 = 2;
+const MENU_TOP_HEIGHT_OFFSET: i32 = 1;
+const MENU_BOTTOM_HEIGHT_OFFSET: i32 = HAND_HEIGHT_OFFSET + 2;
+
+
 fn draw(platform: &Platform, state: &State) {
     for card in state.player.iter() {
         draw_card(platform, card)
     }
+}
+
+pub struct ButtonSpec {
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+    pub text: String,
+    pub id: i32,
+}
+
+
+
+fn draw_main_menu(platform: &Platform,
+                  state: &mut State,
+                  size: Size,
+                  left_mouse_pressed: bool,
+                  left_mouse_released: bool) {
+    state.ui_context.frame_init();
+
+    let ask_button_spec = ButtonSpec {
+        x: MENU_OFFSET + 1,
+        y: MENU_TOP_HEIGHT_OFFSET + 1,
+        w: ((size.width - 2 * MENU_OFFSET) / 2) - MENU_OFFSET,
+        h: ((size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET)) / 2) - MENU_OFFSET,
+        text: "Ask for card".to_string(),
+        id: 123,
+    };
+
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &ask_button_spec,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        println!("Clicked!");
+    }
+}
+
+//calling this once will swallow multiple clicks on the button. We could either
+//pass in and return the number of clicks to fix that, or this could simply be
+//called multiple times per frame (once for each click).
+fn do_button(platform: &Platform,
+             context: &mut UIContext,
+             spec: &ButtonSpec,
+             left_mouse_pressed: bool,
+             left_mouse_released: bool)
+             -> bool {
+    let mut result = false;
+
+    let mouse_pos = (platform.mouse_position)();
+    let inside = inside_rect(mouse_pos, spec.x, spec.y, spec.w, spec.h);
+    let id = spec.id;
+
+    if context.active == id {
+        if left_mouse_released {
+            result = context.hot == id && inside;
+
+            context.set_not_active();
+        }
+    } else if context.hot == id {
+        if left_mouse_pressed {
+            context.set_active(id);
+        }
+    }
+
+    if inside {
+        context.set_next_hot(id);
+    }
+
+    if context.active == id && (platform.key_pressed)(KeyCode::MouseLeft) {
+        draw_rect_with(platform,
+                       spec.x,
+                       spec.y,
+                       spec.w,
+                       spec.h,
+                       ["╔", "═", "╕", "║", "│", "╙", "─", "┘"]);
+    } else if context.hot == id {
+        draw_rect_with(platform,
+                       spec.x,
+                       spec.y,
+                       spec.w,
+                       spec.h,
+                       ["┌", "─", "╖", "│", "║", "╘", "═", "╝"]);
+    } else {
+        draw_rect(platform, spec.x, spec.y, spec.w, spec.h);
+    }
+
+    let rect_middle = spec.x + (spec.w / 2);
+
+    (platform.print_xy)(rect_middle - (spec.text.len() as i32 / 2),
+                        spec.y + (spec.h / 2),
+                        &spec.text);
+
+    return result;
+}
+
+pub fn inside_rect(point: Point, x: i32, y: i32, w: i32, h: i32) -> bool {
+    x <= point.x && y <= point.y && point.x < x + w && point.y < y + h
 }
 
 const CARD_WIDTH: i32 = 16;

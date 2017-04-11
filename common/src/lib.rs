@@ -31,6 +31,61 @@ pub struct State {
     pub opponent_1: Hand,
     pub opponent_2: Hand,
     pub opponent_3: Hand,
+    pub menu_state: MenuState,
+    pub ui_context: UIContext,
+}
+
+pub type UiId = i32;
+
+pub struct UIContext {
+    pub hot: UiId,
+    pub active: UiId,
+    pub next_hot: UiId,
+}
+
+impl UIContext {
+    pub fn set_not_active(&mut self) {
+        self.active = 0;
+    }
+    pub fn set_active(&mut self, id: UiId) {
+        self.active = id;
+    }
+    pub fn set_next_hot(&mut self, id: UiId) {
+        self.next_hot = id;
+    }
+    pub fn set_not_hot(&mut self) {
+        self.hot = 0;
+    }
+    pub fn frame_init(&mut self) {
+        if self.active == 0 {
+            self.hot = self.next_hot;
+        }
+        self.next_hot = 0;
+    }
+}
+
+pub enum MenuState {
+    Main,
+    AskStep1,
+    AskStep2(Opponent),
+    AskStep3(Opponent, SubSuit),
+}
+
+pub enum SubSuit {
+    LowClubs,
+    HighClubs,
+    LowDiamonds,
+    HighDiamonds,
+    LowHearts,
+    HighHearts,
+    LowSpades,
+    HighSpades,
+}
+
+pub enum Opponent {
+    OpponentZero,
+    OpponentOne,
+    OpponentTwo,
 }
 
 pub type Deck = Vec<Card>;
