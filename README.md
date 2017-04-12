@@ -5,7 +5,6 @@ This is a single-player only version of a six person card game with rules as des
 ##TODO
 -> implement asking for a card
   -> menus
-    -> suit selection
     -> value selection
   -> checking opponent's hand for card
     -> display answer

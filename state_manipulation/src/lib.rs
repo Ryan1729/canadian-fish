@@ -371,6 +371,59 @@ fn draw_ask_subsuit_menu(platform: &Platform,
                          left_mouse_released: bool,
                          opponent: Opponent) {
 
+    let button_width = (rect.w / 4) - (MENU_OFFSET);
+    let button_height = (rect.h / 2) - (MENU_OFFSET / 2);
+
+    let lows = vec![LowClubs, LowDiamonds, LowHearts, LowSpades];
+
+    for i in 0..4 {
+        let subsuit = lows[i];
+
+        let index = i as i32;
+        let spec = ButtonSpec {
+            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+            y: rect.y,
+            w: button_width,
+            h: button_height,
+            text: subsuit.to_string(),
+            id: 1123 + index,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &spec,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.menu_state = AskStep3(opponent, subsuit);
+        }
+    }
+
+    let highs = vec![HighClubs, HighDiamonds, HighHearts, HighSpades];
+
+    for i in 0..4 {
+        let subsuit = highs[i];
+
+        let index = i as i32;
+        let spec = ButtonSpec {
+            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+            y: rect.y + button_height + (MENU_OFFSET / 2),
+            w: button_width,
+            h: button_height,
+            text: subsuit.to_string(),
+            id: 2234 + index,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &spec,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.menu_state = AskStep3(opponent, subsuit);
+        }
+    }
+
+
+
 }
 fn draw_ask_suit_menu(platform: &Platform,
                       state: &mut State,

@@ -83,6 +83,24 @@ pub enum SubSuit {
     LowSpades,
     HighSpades,
 }
+use SubSuit::*;
+
+impl fmt::Display for SubSuit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{} of {}",
+               match *self {
+                   LowClubs | LowDiamonds | LowHearts | LowSpades => "2-7",
+                   HighClubs | HighDiamonds | HighHearts | HighSpades => "9-Ace",
+               },
+               match *self {
+                   LowClubs | HighClubs => Clubs.to_string(),
+                   LowDiamonds | HighDiamonds => Diamonds.to_string(),
+                   LowHearts | HighHearts => Hearts.to_string(),
+                   LowSpades | HighSpades => Spades.to_string(),
+               })
+    }
+}
 
 #[derive(Copy, Clone)]
 pub enum Opponent {
