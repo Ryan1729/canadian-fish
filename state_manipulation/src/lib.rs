@@ -404,22 +404,26 @@ fn draw_ask_subsuit_menu(platform: &Platform,
     for i in 0..4 {
         let subsuit = lows[i];
 
-        let index = i as i32;
-        let spec = ButtonSpec {
-            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
-            y: rect.y,
-            w: button_width,
-            h: button_height,
-            text: subsuit.to_string(),
-            id: 1123 + index,
-        };
+        if has_subsuit(&state.player, subsuit) {
 
-        if do_button(platform,
-                     &mut state.ui_context,
-                     &spec,
-                     left_mouse_pressed,
-                     left_mouse_released) {
-            state.menu_state = AskStep3(opponent, subsuit);
+
+            let index = i as i32;
+            let spec = ButtonSpec {
+                x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+                y: rect.y,
+                w: button_width,
+                h: button_height,
+                text: subsuit.to_string(),
+                id: 1123 + index,
+            };
+
+            if do_button(platform,
+                         &mut state.ui_context,
+                         &spec,
+                         left_mouse_pressed,
+                         left_mouse_released) {
+                state.menu_state = AskStep3(opponent, subsuit);
+            }
         }
     }
 
@@ -428,24 +432,42 @@ fn draw_ask_subsuit_menu(platform: &Platform,
     for i in 0..4 {
         let subsuit = highs[i];
 
-        let index = i as i32;
-        let spec = ButtonSpec {
-            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
-            y: rect.y + button_height + (MENU_OFFSET / 2),
-            w: button_width,
-            h: button_height,
-            text: subsuit.to_string(),
-            id: 2234 + index,
-        };
+        if has_subsuit(&state.player, subsuit) {
 
-        if do_button(platform,
-                     &mut state.ui_context,
-                     &spec,
-                     left_mouse_pressed,
-                     left_mouse_released) {
-            state.menu_state = AskStep3(opponent, subsuit);
+            let index = i as i32;
+            let spec = ButtonSpec {
+                x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+                y: rect.y + button_height + (MENU_OFFSET / 2),
+                w: button_width,
+                h: button_height,
+                text: subsuit.to_string(),
+                id: 2234 + index,
+            };
+
+            if do_button(platform,
+                         &mut state.ui_context,
+                         &spec,
+                         left_mouse_pressed,
+                         left_mouse_released) {
+                state.menu_state = AskStep3(opponent, subsuit);
+            }
         }
     }
+}
+
+fn has_subsuit(hand: &Hand, subsuit: SubSuit) -> bool {
+    let pairs = pairs_from_subsuit(subsuit);
+
+    for card in hand.iter() {
+        for &(suit, value) in pairs.iter() {
+
+            if card.suit == suit && card.value == value {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 fn draw_ask_suit_menu(platform: &Platform,
@@ -461,25 +483,29 @@ fn draw_ask_suit_menu(platform: &Platform,
     for i in 0..6 {
         let (suit, value) = pairs[i];
 
-        let index = i as i32;
-        let spec = ButtonSpec {
-            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
-            y: rect.y,
-            w: button_width,
-            h: rect.h,
-            text: format!("{} of {}", value, suit),
-            id: 3345 + index,
-        };
+        if !has_card(&state.player, suit, value) {
 
-        if do_button(platform,
-                     &mut state.ui_context,
-                     &spec,
-                     left_mouse_pressed,
-                     left_mouse_released) {
-            state.menu_state = AskStep4(opponent, suit, value);
+            let index = i as i32;
+            let spec = ButtonSpec {
+                x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+                y: rect.y,
+                w: button_width,
+                h: rect.h,
+                text: format!("{} of {}", value, suit),
+                id: 3345 + index,
+            };
+
+            if do_button(platform,
+                         &mut state.ui_context,
+                         &spec,
+                         left_mouse_pressed,
+                         left_mouse_released) {
+                state.menu_state = AskStep4(opponent, suit, value);
+            }
         }
     }
 }
+
 
 fn draw_ask_result(platform: &Platform,
                    state: &mut State,

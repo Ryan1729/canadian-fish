@@ -4,18 +4,15 @@ This is a single-player only version of a six person card game with rules as des
 
 ##TODO
 -> implement asking for a card
-  -> menus
-    -> asking
-      -> restrict what can be asked for based on player's hand
-      -> breadcrumbs?
-    -> declaring a suit
-      -> declare button goes in lower right because declaration
-        can happen at any time
-      -> pick which suit to declare
-      -> radio buttons and submit button
-    -> turn transfer in player out of cards on their turn corner case
-      -> remove declare button if player is out of cards
-      -> select teammate
+    -> breadcrumbs?
+-> declaring a suit
+    -> declare button goes in lower right because declaration
+      can happen at any time
+    -> pick which suit to declare
+    -> radio buttons and submit button
+-> turn transfer in player out of cards on their turn corner case
+  -> remove declare button if player is out of cards
+  -> select teammate
 
     -> handle player's team running out of cards
 
