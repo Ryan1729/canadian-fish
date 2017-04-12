@@ -5,6 +5,8 @@ use common::*;
 use common::Suit::*;
 use common::Value::*;
 use common::MenuState::*;
+use common::Opponent::*;
+use common::SubSuit::*;
 
 use rand::{StdRng, SeedableRng, Rng};
 
@@ -182,21 +184,59 @@ pub fn game_update_and_render(platform: &Platform,
 
     let size = (platform.size)();
 
-    draw_double_line_rect(platform,
-                          MENU_OFFSET,
-                          MENU_TOP_HEIGHT_OFFSET,
-                          size.width - 2 * MENU_OFFSET,
-                          size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET));
+    let outer = SpecRect {
+        x: MENU_OFFSET,
+        y: MENU_TOP_HEIGHT_OFFSET,
+        w: size.width - 2 * MENU_OFFSET,
+        h: size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET),
+    };
 
+
+
+    draw_double_line_rect(platform, outer.x, outer.y, outer.w, outer.h);
+
+
+    let inner = SpecRect {
+        x: outer.x + 1,
+        y: outer.y + 1,
+        w: outer.w - 2,
+        h: outer.h - 2,
+    };
+
+    state.ui_context.frame_init();
     match state.menu_state {
         Main => {
             draw_main_menu(platform,
                            state,
-                           size,
+                           inner,
                            left_mouse_pressed,
                            left_mouse_released)
         }
-        _ => {}
+        AskStep1 => {
+            draw_ask_opponent_menu(platform,
+                                   state,
+                                   inner,
+                                   left_mouse_pressed,
+                                   left_mouse_released)
+        }
+        AskStep2(opponent) => {
+            draw_ask_subsuit_menu(platform,
+                                  state,
+                                  inner,
+                                  left_mouse_pressed,
+                                  left_mouse_released,
+                                  opponent)
+        }
+        AskStep3(opponent, subsuit) => {
+            draw_ask_suit_menu(platform,
+                               state,
+                               inner,
+                               left_mouse_pressed,
+                               left_mouse_released,
+                               opponent,
+                               subsuit)
+        }
+
     }
 
     draw(platform, state);
@@ -225,6 +265,13 @@ fn draw(platform: &Platform, state: &State) {
     }
 }
 
+pub struct SpecRect {
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+}
+
 pub struct ButtonSpec {
     pub x: i32,
     pub y: i32,
@@ -234,20 +281,16 @@ pub struct ButtonSpec {
     pub id: i32,
 }
 
-
-
 fn draw_main_menu(platform: &Platform,
                   state: &mut State,
-                  size: Size,
+                  rect: SpecRect,
                   left_mouse_pressed: bool,
                   left_mouse_released: bool) {
-    state.ui_context.frame_init();
-
     let ask_button_spec = ButtonSpec {
-        x: MENU_OFFSET + 1,
-        y: MENU_TOP_HEIGHT_OFFSET + 1,
-        w: ((size.width - 2 * MENU_OFFSET) / 2) - MENU_OFFSET,
-        h: ((size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET)) / 2) - MENU_OFFSET,
+        x: rect.x,
+        y: rect.y,
+        w: (rect.w / 2) - MENU_OFFSET,
+        h: (rect.h / 2) - MENU_OFFSET,
         text: "Ask for card".to_string(),
         id: 123,
     };
@@ -258,9 +301,87 @@ fn draw_main_menu(platform: &Platform,
                  &ask_button_spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-        println!("Clicked!");
+        state.menu_state = AskStep1;
     }
 }
+
+fn draw_ask_opponent_menu(platform: &Platform,
+                          state: &mut State,
+                          rect: SpecRect,
+                          left_mouse_pressed: bool,
+                          left_mouse_released: bool) {
+
+    let button_width = (rect.w / 3) - (MENU_OFFSET as f32 / 3.0).round() as i32;
+
+    let opponent_zero = ButtonSpec {
+        x: rect.x,
+        y: rect.y,
+        w: button_width,
+        h: rect.h,
+        text: "OpponentZero".to_string(),
+        id: 123,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &opponent_zero,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        state.menu_state = AskStep2(OpponentZero);
+    }
+
+    let opponent_one = ButtonSpec {
+        x: rect.x + button_width + MENU_OFFSET,
+        y: rect.y,
+        w: button_width,
+        h: rect.h,
+        text: "OpponentOne".to_string(),
+        id: 234,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &opponent_one,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        state.menu_state = AskStep2(OpponentOne);
+    }
+
+    let opponent_two = ButtonSpec {
+        x: rect.x + (button_width + MENU_OFFSET) * 2,
+        y: rect.y,
+        w: button_width,
+        h: rect.h,
+        text: "OpponentTwo".to_string(),
+        id: 345,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &opponent_two,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        state.menu_state = AskStep2(OpponentTwo);
+    }
+}
+fn draw_ask_subsuit_menu(platform: &Platform,
+                         state: &mut State,
+                         rect: SpecRect,
+                         left_mouse_pressed: bool,
+                         left_mouse_released: bool,
+                         opponent: Opponent) {
+
+}
+fn draw_ask_suit_menu(platform: &Platform,
+                      state: &mut State,
+                      rect: SpecRect,
+                      left_mouse_pressed: bool,
+                      left_mouse_released: bool,
+                      opponent: Opponent,
+                      subsuit: SubSuit) {
+
+}
+
 
 //calling this once will swallow multiple clicks on the button. We could either
 //pass in and return the number of clicks to fix that, or this could simply be

@@ -64,6 +64,7 @@ impl UIContext {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum MenuState {
     Main,
     AskStep1,
@@ -71,6 +72,7 @@ pub enum MenuState {
     AskStep3(Opponent, SubSuit),
 }
 
+#[derive(Copy, Clone)]
 pub enum SubSuit {
     LowClubs,
     HighClubs,
@@ -82,6 +84,7 @@ pub enum SubSuit {
     HighSpades,
 }
 
+#[derive(Copy, Clone)]
 pub enum Opponent {
     OpponentZero,
     OpponentOne,
