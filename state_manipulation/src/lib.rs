@@ -494,12 +494,12 @@ fn draw_ask_result(platform: &Platform,
 
 
     let hand = match opponent {
-        OpponentZero => &state.opponent_1,
-        OpponentOne => &state.opponent_2,
-        OpponentTwo => &state.opponent_3,
+        OpponentZero => &mut state.opponent_1,
+        OpponentOne => &mut state.opponent_2,
+        OpponentTwo => &mut state.opponent_3,
     };
 
-    let question = &format!("{:?}, do you have a {} of {}?", opponent, value, suit);
+    let question = &format!("\"{:?}, do you have a {} of {}?\"", opponent, value, suit);
 
     print_horizontally_centered_line(platform, &rect, question, rect.y + MENU_OFFSET);
 
@@ -529,7 +529,22 @@ fn draw_ask_result(platform: &Platform,
                  left_mouse_pressed,
                  left_mouse_released) {
 
+        if opponent_has_card {
+            let mut index = 0;
+            for card in hand.iter() {
+                if card.suit == suit && card.value == value {
+                    break;
+                }
 
+                index += 1;
+            }
+
+            if index < hand.len() {
+                state.player.push(hand.swap_remove(index));
+
+                set_hand_positions((platform.size)().height, &mut state.player);
+            }
+        }
         state.menu_state = Main;
     }
 
