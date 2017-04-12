@@ -236,6 +236,16 @@ pub fn game_update_and_render(platform: &Platform,
                                opponent,
                                subsuit)
         }
+        AskStep4(opponent, suit, value) => {
+            draw_ask_result(platform,
+                            state,
+                            inner,
+                            left_mouse_pressed,
+                            left_mouse_released,
+                            opponent,
+                            suit,
+                            value)
+        }
 
     }
 
@@ -272,6 +282,15 @@ pub struct SpecRect {
     pub h: i32,
 }
 
+impl AsRef<SpecRect> for SpecRect {
+    fn as_ref(&self) -> &SpecRect {
+        self
+    }
+}
+
+//NOTE(Ryan1729): The AsRef impl below relies on ButtonSpec having
+// the same ordering for x,y,w and h as SpecRect, and that they are
+// at the top!
 pub struct ButtonSpec {
     pub x: i32,
     pub y: i32,
@@ -279,6 +298,12 @@ pub struct ButtonSpec {
     pub h: i32,
     pub text: String,
     pub id: i32,
+}
+
+impl AsRef<SpecRect> for ButtonSpec {
+    fn as_ref(&self) -> &SpecRect {
+        unsafe { std::mem::transmute::<&ButtonSpec, &SpecRect>(self) }
+    }
 }
 
 fn draw_main_menu(platform: &Platform,
@@ -421,10 +446,8 @@ fn draw_ask_subsuit_menu(platform: &Platform,
             state.menu_state = AskStep3(opponent, subsuit);
         }
     }
-
-
-
 }
+
 fn draw_ask_suit_menu(platform: &Platform,
                       state: &mut State,
                       rect: SpecRect,
@@ -432,9 +455,164 @@ fn draw_ask_suit_menu(platform: &Platform,
                       left_mouse_released: bool,
                       opponent: Opponent,
                       subsuit: SubSuit) {
+    let button_width = (rect.w / 6) - MENU_OFFSET;
+    let pairs = pairs_from_subsuit(subsuit);
+
+    for i in 0..6 {
+        let (suit, value) = pairs[i];
+
+        let index = i as i32;
+        let spec = ButtonSpec {
+            x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+            y: rect.y,
+            w: button_width,
+            h: rect.h,
+            text: format!("{} of {}", value, suit),
+            id: 3345 + index,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &spec,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.menu_state = AskStep4(opponent, suit, value);
+        }
+    }
+}
+
+fn draw_ask_result(platform: &Platform,
+                   state: &mut State,
+                   rect: SpecRect,
+                   left_mouse_pressed: bool,
+                   left_mouse_released: bool,
+                   opponent: Opponent,
+                   suit: Suit,
+                   value: Value) {
+    let button_width = (rect.w / 3) - (MENU_OFFSET as f64 / 3.0).round() as i32;
+    let button_height = rect.h / 5;
+
+
+    let hand = match opponent {
+        OpponentZero => &state.opponent_1,
+        OpponentOne => &state.opponent_2,
+        OpponentTwo => &state.opponent_3,
+    };
+
+    let question = &format!("{:?}, do you have a {} of {}?", opponent, value, suit);
+
+    print_horizontally_centered_line(platform, &rect, question, rect.y + MENU_OFFSET);
+
+    let opponent_has_card = has_card(hand, suit, value);
+    if opponent_has_card {
+        print_centered_line(platform, &rect, "\"Yes, I do. Here you go.\"");
+    } else {
+        print_centered_line(platform, &rect, "\"Nope! Now it's my turn!\"");
+    }
+
+    let spec = ButtonSpec {
+        x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET),
+        y: rect.y + rect.h - button_height,
+        w: button_width,
+        h: button_height,
+        text: if opponent_has_card {
+            "Aha!".to_string()
+        } else {
+            "Oh...".to_string()
+        },
+        id: 4456,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &spec,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+
+
+        state.menu_state = Main;
+    }
 
 }
 
+fn has_card(hand: &Hand, suit: Suit, value: Value) -> bool {
+    for card in hand.iter() {
+        if card.suit == suit && card.value == value {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn pairs_from_subsuit(subsuit: SubSuit) -> Vec<(Suit, Value)> {
+    match subsuit {
+        LowClubs => {
+            vec![(Clubs, Two),
+                 (Clubs, Three),
+                 (Clubs, Four),
+                 (Clubs, Five),
+                 (Clubs, Six),
+                 (Clubs, Seven)]
+        }
+        HighClubs => {
+            vec![(Clubs, Nine),
+                 (Clubs, Ten),
+                 (Clubs, Jack),
+                 (Clubs, Queen),
+                 (Clubs, King),
+                 (Clubs, Ace)]
+        }
+        LowDiamonds => {
+            vec![(Diamonds, Two),
+                 (Diamonds, Three),
+                 (Diamonds, Four),
+                 (Diamonds, Five),
+                 (Diamonds, Six),
+                 (Diamonds, Seven)]
+        }
+        HighDiamonds => {
+            vec![(Diamonds, Nine),
+                 (Diamonds, Ten),
+                 (Diamonds, Jack),
+                 (Diamonds, Queen),
+                 (Diamonds, King),
+                 (Diamonds, Ace)]
+        }
+        LowHearts => {
+            vec![(Hearts, Two),
+                 (Hearts, Three),
+                 (Hearts, Four),
+                 (Hearts, Five),
+                 (Hearts, Six),
+                 (Hearts, Seven)]
+        }
+        HighHearts => {
+            vec![(Hearts, Nine),
+                 (Hearts, Ten),
+                 (Hearts, Jack),
+                 (Hearts, Queen),
+                 (Hearts, King),
+                 (Hearts, Ace)]
+        }
+        LowSpades => {
+            vec![(Spades, Two),
+                 (Spades, Three),
+                 (Spades, Four),
+                 (Spades, Five),
+                 (Spades, Six),
+                 (Spades, Seven)]
+        }
+        HighSpades => {
+            vec![(Spades, Nine),
+                 (Spades, Ten),
+                 (Spades, Jack),
+                 (Spades, Queen),
+                 (Spades, King),
+                 (Spades, Ace)]
+        }
+    }
+}
 
 //calling this once will swallow multiple clicks on the button. We could either
 //pass in and return the number of clicks to fix that, or this could simply be
@@ -485,14 +663,53 @@ fn do_button(platform: &Platform,
         draw_rect(platform, spec.x, spec.y, spec.w, spec.h);
     }
 
-    let rect_middle = spec.x + (spec.w / 2);
-
-    (platform.print_xy)(rect_middle - (spec.text.len() as i32 / 2),
-                        spec.y + (spec.h / 2),
-                        &spec.text);
+    print_centered_line(platform, spec, &spec.text);
 
     return result;
 }
+
+fn print_centered_line<T: AsRef<SpecRect>>(platform: &Platform, thing: &T, text: &str) {
+    print_line_in_rect(platform, thing, text, None, None)
+}
+
+fn print_horizontally_centered_line<T: AsRef<SpecRect>>(platform: &Platform,
+                                                        thing: &T,
+                                                        text: &str,
+                                                        y: i32) {
+    print_line_in_rect(platform, thing, text, None, Some(y))
+}
+fn print_vertically_centered_line<T: AsRef<SpecRect>>(platform: &Platform,
+                                                      thing: &T,
+                                                      text: &str,
+                                                      x: i32) {
+    print_line_in_rect(platform, thing, text, Some(x), None)
+}
+fn print_line_in_rect<T: AsRef<SpecRect>>(platform: &Platform,
+                                          thing: &T,
+                                          text: &str,
+                                          x: Option<i32>,
+                                          y: Option<i32>) {
+    let rect = thing.as_ref();
+
+    let x_ = if let Some(given_x) = x {
+        given_x
+    } else {
+        let rect_middle = rect.x + (rect.w / 2);
+
+        rect_middle - (text.len() as i32 / 2)
+    };
+
+    let y_ = if let Some(given_y) = y {
+        given_y
+    } else {
+        rect.y + (rect.h / 2)
+
+    };
+
+    (platform.print_xy)(x_, y_, &text);
+}
+
+
 
 pub fn inside_rect(point: Point, x: i32, y: i32, w: i32, h: i32) -> bool {
     x <= point.x && y <= point.y && point.x < x + w && point.y < y + h

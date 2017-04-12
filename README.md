@@ -4,12 +4,9 @@ This is a single-player only version of a six person card game with rules as des
 
 ##TODO
 -> implement asking for a card
-  -> menus
-    -> value selection
-  -> checking opponent's hand for card
-    -> display answer
   -> moving card to player's hand
   -> menus
+    -> restrict what can be asked for based on player's hand
     -> breadcrumbs?
 
 

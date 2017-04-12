@@ -70,6 +70,7 @@ pub enum MenuState {
     AskStep1,
     AskStep2(Opponent),
     AskStep3(Opponent, SubSuit),
+    AskStep4(Opponent, Suit, Value),
 }
 
 #[derive(Copy, Clone)]
@@ -102,7 +103,7 @@ impl fmt::Display for SubSuit {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Opponent {
     OpponentZero,
     OpponentOne,
@@ -118,7 +119,7 @@ pub struct Card {
     pub value: Value,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -141,7 +142,7 @@ impl fmt::Display for Suit {
 }
 
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Value {
     Ace,
     Two,
