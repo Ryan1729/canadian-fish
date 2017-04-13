@@ -3,8 +3,14 @@
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
 ##TODO
--> implement asking for a card
-    -> breadcrumbs?
+-> display all cards
+  -> sorting cards
+    -> auto sort
+    -> manual sort?
+      -> click to select cards
+      -> window arrows change to shifting arrows
+      -> seleceted card is swapped with adjacent cards
+      -> insert cards at whichever index binary_search Errs with
 -> declaring a suit
     -> declare button goes in lower right because declaration
       can happen at any time
@@ -15,7 +21,8 @@ This is a single-player only version of a six person card game with rules as des
   -> select teammate
 
     -> handle player's team running out of cards
-
+-> polish asking for a card
+    -> breadcrumbs?
 
 ## Installation for Compilation
 

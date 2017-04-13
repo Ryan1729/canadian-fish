@@ -33,6 +33,7 @@ pub struct State {
     pub opponent_3: Hand,
     pub menu_state: MenuState,
     pub ui_context: UIContext,
+    pub card_offset: usize,
 }
 
 pub type UiId = i32;
@@ -114,7 +115,6 @@ pub type Deck = Vec<Card>;
 pub type Hand = Vec<Card>;
 
 pub struct Card {
-    pub location: Point,
     pub suit: Suit,
     pub value: Value,
 }

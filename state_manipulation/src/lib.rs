@@ -58,8 +58,6 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_3.push(deck.pop().unwrap());
     }
 
-    set_hand_positions(size.height, &mut player);
-
     State {
         rng: rng,
         title_screen: title_screen,
@@ -75,6 +73,7 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
             active: 0,
             next_hot: 0,
         },
+        card_offset: 0,
     }
 }
 
@@ -97,7 +96,6 @@ fn shuffled_deck(rng: &mut StdRng) -> Deck {
                            King]
                     .iter() {
             deck.push(Card {
-                          location: Point { x: 0, y: 0 },
                           suit: suit,
                           value: value,
                       });
@@ -109,31 +107,13 @@ fn shuffled_deck(rng: &mut StdRng) -> Deck {
     deck
 }
 
-const CARD_OFFSET: i32 = 2;
+const CARD_OFFSET: i32 = 5;
 const CARD_OFFSET_DELTA: i32 = 6;
 
 const HAND_HEIGHT_OFFSET: i32 = 8;
 
-fn set_hand_positions(height: i32, hand: &mut Hand) {
-    let mut offset = CARD_OFFSET;
-    for card in hand.iter_mut() {
-        card.location.x = offset;
-        card.location.y = hand_height(height);
-
-        offset += CARD_OFFSET_DELTA;
-    }
-}
-
 pub fn hand_height(height: i32) -> i32 {
     height - HAND_HEIGHT_OFFSET
-}
-
-fn collect_hand(cards: &mut Vec<Card>) {
-    let mut offset = CARD_OFFSET;
-    for card in cards.iter_mut() {
-        card.location.x = offset;
-        offset += CARD_OFFSET_DELTA;
-    }
 }
 
 #[no_mangle]
@@ -191,10 +171,7 @@ pub fn game_update_and_render(platform: &Platform,
         h: size.height - (MENU_TOP_HEIGHT_OFFSET + MENU_BOTTOM_HEIGHT_OFFSET),
     };
 
-
-
     draw_double_line_rect(platform, outer.x, outer.y, outer.w, outer.h);
-
 
     let inner = SpecRect {
         x: outer.x + 1,
@@ -251,8 +228,49 @@ pub fn game_update_and_render(platform: &Platform,
 
     draw(platform, state);
 
+    let hand_window_left = ButtonSpec {
+        x: 1,
+        y: size.height - 5,
+        w: HAND_ARROW_WIDTH,
+        h: HAND_ARROW_HEIGHT,
+        text: "←".to_string(),
+        id: 1223,
+    };
+
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &hand_window_left,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        state.card_offset = state.card_offset.saturating_sub(1);
+    }
+
+    let hand_window_right = ButtonSpec {
+        x: size.width - (DECLARE_BUTTON_WIDTH + MENU_OFFSET + HAND_ARROW_WIDTH),
+        y: size.height - (MENU_OFFSET + HAND_ARROW_HEIGHT),
+        w: HAND_ARROW_WIDTH,
+        h: HAND_ARROW_HEIGHT,
+        text: "→".to_string(),
+        id: 2334,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &hand_window_right,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        if state.player.get(state.card_offset + 1).is_some() {
+            state.card_offset += 1;
+        }
+    }
+
     false
 }
+
+const HAND_ARROW_WIDTH: i32 = 4;
+const HAND_ARROW_HEIGHT: i32 = 3;
+const DECLARE_BUTTON_WIDTH: i32 = 10;
 
 fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Event) {
     match *event {
@@ -270,8 +288,20 @@ const MENU_BOTTOM_HEIGHT_OFFSET: i32 = HAND_HEIGHT_OFFSET + 2;
 
 
 fn draw(platform: &Platform, state: &State) {
-    for card in state.player.iter() {
-        draw_card(platform, card)
+    let size = (platform.size)();
+
+    let mut x = CARD_OFFSET;
+    let y = hand_height(size.height);
+
+    for i in 0..8 {
+        let index = i + state.card_offset;
+
+        if let Some(card) = state.player.get(index) {
+            draw_card(platform, (x, y), card);
+            x += CARD_OFFSET_DELTA;
+        } else {
+            break;
+        }
     }
 }
 
@@ -567,8 +597,6 @@ fn draw_ask_result(platform: &Platform,
 
             if index < hand.len() {
                 state.player.push(hand.swap_remove(index));
-
-                set_hand_positions((platform.size)().height, &mut state.player);
             }
         }
         state.menu_state = Main;
@@ -763,14 +791,7 @@ const CARD_MOUSE_X_OFFSET: i32 = -CARD_WIDTH / 2;
 const CARD_MOUSE_Y_OFFSET: i32 = 0;
 
 
-fn draw_card(platform: &Platform, card: &Card) {
-    draw_card_at(platform, card.location, card);
-}
-
-fn draw_card_at(platform: &Platform, location: Point, card: &Card) {
-    let x = location.x;
-    let y = location.y;
-
+fn draw_card(platform: &Platform, (x, y): (i32, i32), card: &Card) {
     draw_rect(platform, x, y, CARD_WIDTH, CARD_HEIGHT);
 
     (platform.print_xy)(x + 1, y + 1, &card.value.to_string());
