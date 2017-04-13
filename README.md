@@ -4,7 +4,6 @@ This is a single-player only version of a six person card game with rules as des
 
 ##TODO
 -> declaring a suit
-    -> pick which suit to declare
     -> radio buttons and submit button
 -> turn transfer in player out of cards on their turn corner case
   -> remove declare button if player is out of cards

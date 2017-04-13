@@ -36,6 +36,7 @@ pub struct State {
     pub menu_state: MenuState,
     pub ui_context: UIContext,
     pub card_offset: usize,
+    pub suits_in_play_bits: u8,
 }
 
 pub type UiId = i32;
@@ -74,6 +75,8 @@ pub enum MenuState {
     AskStep2(Opponent),
     AskStep3(Opponent, SubSuit),
     AskStep4(Opponent, Suit, Value),
+    DeclareStep1,
+    DeclareStep2(SubSuit),
 }
 
 #[derive(Copy, Clone)]
@@ -103,6 +106,22 @@ impl fmt::Display for SubSuit {
                    LowHearts | HighHearts => Hearts.to_string(),
                    LowSpades | HighSpades => Spades.to_string(),
                })
+    }
+}
+
+//bitmasks for use with suits_in_play_bits
+impl From<SubSuit> for u8 {
+    fn from(subsuit: SubSuit) -> Self {
+        match subsuit {
+            LowClubs => 1,
+            HighClubs => 2,
+            LowDiamonds => 4,
+            HighDiamonds => 8,
+            LowHearts => 16,
+            HighHearts => 32,
+            LowSpades => 64,
+            HighSpades => 128,
+        }
     }
 }
 

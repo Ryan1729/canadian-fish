@@ -76,6 +76,7 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
             next_hot: 0,
         },
         card_offset: 0,
+        suits_in_play_bits: 0xFF,
     }
 }
 
@@ -199,12 +200,13 @@ pub fn game_update_and_render(platform: &Platform,
                                    left_mouse_released)
         }
         AskStep2(opponent) => {
-            draw_ask_subsuit_menu(platform,
-                                  state,
-                                  inner,
-                                  left_mouse_pressed,
-                                  left_mouse_released,
-                                  opponent)
+            draw_subsuit_menu(platform,
+                              state,
+                              inner,
+                              left_mouse_pressed,
+                              left_mouse_released,
+                              &|state, subsuit| { state.menu_state = AskStep3(opponent, subsuit); },
+                              false)
         }
         AskStep3(opponent, subsuit) => {
             draw_ask_suit_menu(platform,
@@ -226,6 +228,23 @@ pub fn game_update_and_render(platform: &Platform,
                             value)
         }
 
+        DeclareStep1 => {
+            draw_subsuit_menu(platform,
+                              state,
+                              inner,
+                              left_mouse_pressed,
+                              left_mouse_released,
+                              &|state, subsuit| { state.menu_state = DeclareStep2(subsuit); },
+                              true)
+        }
+        DeclareStep2(subsuit) => {
+            draw_declare_radio_buttons(platform,
+                                       state,
+                                       inner,
+                                       left_mouse_pressed,
+                                       left_mouse_released,
+                                       subsuit)
+        }
     }
 
     draw(platform, state);
@@ -284,7 +303,9 @@ pub fn game_update_and_render(platform: &Platform,
                  &mut state.ui_context,
                  &declare_button,
                  left_mouse_pressed,
-                 left_mouse_released) {}
+                 left_mouse_released) {
+        state.menu_state = DeclareStep1;
+    }
 
     false
 }
@@ -440,12 +461,13 @@ fn draw_ask_opponent_menu(platform: &Platform,
         state.menu_state = AskStep2(OpponentTwo);
     }
 }
-fn draw_ask_subsuit_menu(platform: &Platform,
-                         state: &mut State,
-                         rect: SpecRect,
-                         left_mouse_pressed: bool,
-                         left_mouse_released: bool,
-                         opponent: Opponent) {
+fn draw_subsuit_menu(platform: &Platform,
+                     state: &mut State,
+                     rect: SpecRect,
+                     left_mouse_pressed: bool,
+                     left_mouse_released: bool,
+                     action: &Fn(&mut State, SubSuit),
+                     show_all: bool) {
 
     let button_width = (rect.w / 4) - (MENU_OFFSET);
     let button_height = (rect.h / 2) - (MENU_OFFSET / 2);
@@ -455,9 +477,7 @@ fn draw_ask_subsuit_menu(platform: &Platform,
     for i in 0..4 {
         let subsuit = lows[i];
 
-        if has_subsuit(&state.player, subsuit) {
-
-
+        if subsuit_is_in_play(state, subsuit) && (has_subsuit(&state.player, subsuit) || show_all) {
             let index = i as i32;
             let spec = ButtonSpec {
                 x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
@@ -473,7 +493,7 @@ fn draw_ask_subsuit_menu(platform: &Platform,
                          &spec,
                          left_mouse_pressed,
                          left_mouse_released) {
-                state.menu_state = AskStep3(opponent, subsuit);
+                action(state, subsuit);
             }
         }
     }
@@ -483,7 +503,7 @@ fn draw_ask_subsuit_menu(platform: &Platform,
     for i in 0..4 {
         let subsuit = highs[i];
 
-        if has_subsuit(&state.player, subsuit) {
+        if subsuit_is_in_play(state, subsuit) && (has_subsuit(&state.player, subsuit) || show_all) {
 
             let index = i as i32;
             let spec = ButtonSpec {
@@ -500,7 +520,7 @@ fn draw_ask_subsuit_menu(platform: &Platform,
                          &spec,
                          left_mouse_pressed,
                          left_mouse_released) {
-                state.menu_state = AskStep3(opponent, subsuit);
+                action(state, subsuit);
             }
         }
     }
@@ -520,6 +540,11 @@ fn has_subsuit(hand: &Hand, subsuit: SubSuit) -> bool {
 
     false
 }
+
+fn subsuit_is_in_play(state: &State, subsuit: SubSuit) -> bool {
+    state.suits_in_play_bits & (u8::from(subsuit)) != 0
+}
+
 
 fn draw_ask_suit_menu(platform: &Platform,
                       state: &mut State,
@@ -628,6 +653,42 @@ fn draw_ask_result(platform: &Platform,
     }
 
 }
+
+fn draw_declare_radio_buttons(platform: &Platform,
+                              state: &mut State,
+                              rect: SpecRect,
+                              left_mouse_pressed: bool,
+                              left_mouse_released: bool,
+                              subsuit: SubSuit) {
+
+    let pairs = pairs_from_subsuit(subsuit);
+
+    for i in 0..6 {
+        // let (suit, value) = pairs[i];
+        //
+        // if !has_card(&state.player, suit, value) {
+        //
+        //     let index = i as i32;
+        //     let spec = ButtonSpec {
+        //         x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
+        //         y: rect.y,
+        //         w: button_width,
+        //         h: rect.h,
+        //         text: format!("{} of {}", value, suit),
+        //         id: 3345 + index,
+        //     };
+        //
+        //     if do_button(platform,
+        //                  &mut state.ui_context,
+        //                  &spec,
+        //                  left_mouse_pressed,
+        //                  left_mouse_released) {
+        //         state.menu_state = AskStep4(opponent, suit, value);
+        //     }
+        // }
+    }
+}
+
 
 fn has_card(hand: &Hand, suit: Suit, value: Value) -> bool {
     for card in hand.iter() {
