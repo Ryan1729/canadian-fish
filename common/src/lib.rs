@@ -3,6 +3,8 @@ extern crate rand;
 use std::fmt;
 
 use rand::StdRng;
+use std::cmp::Ordering;
+use std::cmp::Ordering::{Less, Equal, Greater};
 
 pub struct Platform {
     pub print_xy: fn(i32, i32, &str),
@@ -114,12 +116,34 @@ pub enum Opponent {
 pub type Deck = Vec<Card>;
 pub type Hand = Vec<Card>;
 
+#[derive(Eq)]
 pub struct Card {
     pub suit: Suit,
     pub value: Value,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+impl Ord for Card {
+    fn cmp(&self, other: &Card) -> Ordering {
+        match self.suit.cmp(&other.suit) {
+            Equal => self.value.cmp(&other.value),
+            otherwise => otherwise,
+        }
+    }
+}
+
+impl PartialOrd for Card {
+    fn partial_cmp(&self, other: &Card) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Card {
+    fn eq(&self, other: &Card) -> bool {
+        self.suit == other.suit && self.value == other.value
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -141,8 +165,30 @@ impl fmt::Display for Suit {
     }
 }
 
+impl Ord for Suit {
+    fn cmp(&self, other: &Suit) -> Ordering {
+        u8::from(*self).cmp(&u8::from(*other))
+    }
+}
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+impl From<Suit> for u8 {
+    fn from(suit: Suit) -> Self {
+        match suit {
+            Clubs => 1,
+            Diamonds => 2,
+            Hearts => 3,
+            Spades => 4,
+        }
+    }
+}
+
+impl PartialOrd for Suit {
+    fn partial_cmp(&self, other: &Suit) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Value {
     Ace,
     Two,
@@ -181,6 +227,37 @@ impl fmt::Display for Value {
     }
 }
 
+impl Ord for Value {
+    fn cmp(&self, other: &Value) -> Ordering {
+        u8::from(*self).cmp(&u8::from(*other))
+    }
+}
+
+impl From<Value> for u8 {
+    fn from(value: Value) -> Self {
+        match value {
+            Ace => 1,
+            Two => 2,
+            Three => 3,
+            Four => 4,
+            Five => 5,
+            Six => 6,
+            Seven => 7,
+            //Eight => 8, //Canadian Fish doesn't use the Eights
+            Nine => 9,
+            Ten => 10,
+            Jack => 11,
+            Queen => 12,
+            King => 13,
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 
 

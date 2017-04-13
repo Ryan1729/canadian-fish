@@ -58,6 +58,8 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_3.push(deck.pop().unwrap());
     }
 
+    player.sort();
+
     State {
         rng: rng,
         title_screen: title_screen,
@@ -233,7 +235,11 @@ pub fn game_update_and_render(platform: &Platform,
         y: size.height - 5,
         w: HAND_ARROW_WIDTH,
         h: HAND_ARROW_HEIGHT,
-        text: "←".to_string(),
+        text: if state.card_offset <= 0 {
+            "←".to_string()
+        } else {
+            "←+".to_string()
+        },
         id: 1223,
     };
 
@@ -251,7 +257,11 @@ pub fn game_update_and_render(platform: &Platform,
         y: size.height - (MENU_OFFSET + HAND_ARROW_HEIGHT),
         w: HAND_ARROW_WIDTH,
         h: HAND_ARROW_HEIGHT,
-        text: "→".to_string(),
+        text: if state.player.len() - state.card_offset <= HAND_WINDOW_SIZE {
+            "→".to_string()
+        } else {
+            "+→".to_string()
+        },
         id: 2334,
     };
 
@@ -285,7 +295,7 @@ fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Eve
 const MENU_OFFSET: i32 = 2;
 const MENU_TOP_HEIGHT_OFFSET: i32 = 1;
 const MENU_BOTTOM_HEIGHT_OFFSET: i32 = HAND_HEIGHT_OFFSET + 2;
-
+const HAND_WINDOW_SIZE: usize = 8;
 
 fn draw(platform: &Platform, state: &State) {
     let size = (platform.size)();
@@ -293,7 +303,7 @@ fn draw(platform: &Platform, state: &State) {
     let mut x = CARD_OFFSET;
     let y = hand_height(size.height);
 
-    for i in 0..8 {
+    for i in 0..HAND_WINDOW_SIZE {
         let index = i + state.card_offset;
 
         if let Some(card) = state.player.get(index) {
@@ -596,7 +606,11 @@ fn draw_ask_result(platform: &Platform,
             }
 
             if index < hand.len() {
-                state.player.push(hand.swap_remove(index));
+                let taken_card = hand.swap_remove(index);
+
+                if let Err(insertion_index) = state.player.binary_search(&taken_card) {
+                    state.player.insert(insertion_index, taken_card);
+                }
             }
         }
         state.menu_state = Main;
@@ -765,7 +779,7 @@ fn print_line_in_rect<T: AsRef<SpecRect>>(platform: &Platform,
     } else {
         let rect_middle = rect.x + (rect.w / 2);
 
-        rect_middle - (text.len() as i32 / 2)
+        rect_middle - (text.len() as i32 / 2) + 1
     };
 
     let y_ = if let Some(given_y) = y {
