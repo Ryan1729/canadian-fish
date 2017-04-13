@@ -230,57 +230,68 @@ pub fn game_update_and_render(platform: &Platform,
 
     draw(platform, state);
 
-    let hand_window_left = ButtonSpec {
-        x: 1,
-        y: size.height - 5,
-        w: HAND_ARROW_WIDTH,
-        h: HAND_ARROW_HEIGHT,
-        text: if state.card_offset <= 0 {
-            "←".to_string()
-        } else {
-            "←+".to_string()
-        },
-        id: 1223,
-    };
+    if state.card_offset > 0 {
+        let hand_window_left = ButtonSpec {
+            x: 1,
+            y: size.height - 5,
+            w: HAND_ARROW_WIDTH,
+            h: HAND_ARROW_HEIGHT,
+            text: "←".to_string(),
+            id: 1223,
+        };
 
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &hand_window_left,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.card_offset = state.card_offset.saturating_sub(1);
+        }
 
-    if do_button(platform,
-                 &mut state.ui_context,
-                 &hand_window_left,
-                 left_mouse_pressed,
-                 left_mouse_released) {
-        state.card_offset = state.card_offset.saturating_sub(1);
     }
 
-    let hand_window_right = ButtonSpec {
-        x: size.width - (DECLARE_BUTTON_WIDTH + MENU_OFFSET + HAND_ARROW_WIDTH),
-        y: size.height - (MENU_OFFSET + HAND_ARROW_HEIGHT),
-        w: HAND_ARROW_WIDTH,
-        h: HAND_ARROW_HEIGHT,
-        text: if state.player.len() - state.card_offset <= HAND_WINDOW_SIZE {
-            "→".to_string()
-        } else {
-            "+→".to_string()
-        },
-        id: 2334,
-    };
+    if state.player.len() - state.card_offset > HAND_WINDOW_SIZE {
+        let hand_window_right = ButtonSpec {
+            x: size.width - (DECLARE_BUTTON_WIDTH + MENU_OFFSET + HAND_ARROW_WIDTH),
+            y: size.height - (MENU_OFFSET + HAND_ARROW_HEIGHT),
+            w: HAND_ARROW_WIDTH,
+            h: HAND_ARROW_HEIGHT,
+            text: "→".to_string(),
+            id: 2334,
+        };
 
-    if do_button(platform,
-                 &mut state.ui_context,
-                 &hand_window_right,
-                 left_mouse_pressed,
-                 left_mouse_released) {
-        if state.player.get(state.card_offset + 1).is_some() {
-            state.card_offset += 1;
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &hand_window_right,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            if state.player.get(state.card_offset + 1).is_some() {
+                state.card_offset += 1;
+            }
         }
     }
+
+    let declare_button = ButtonSpec {
+        x: size.width - DECLARE_BUTTON_WIDTH - MENU_OFFSET,
+        y: outer.y + outer.h + MENU_OFFSET,
+        w: DECLARE_BUTTON_WIDTH,
+        h: 5,
+        text: "Declare".to_string(),
+        id: 3445,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &declare_button,
+                 left_mouse_pressed,
+                 left_mouse_released) {}
 
     false
 }
 
 const HAND_ARROW_WIDTH: i32 = 4;
 const HAND_ARROW_HEIGHT: i32 = 3;
-const DECLARE_BUTTON_WIDTH: i32 = 10;
+const DECLARE_BUTTON_WIDTH: i32 = 11;
 
 fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Event) {
     match *event {
@@ -779,7 +790,7 @@ fn print_line_in_rect<T: AsRef<SpecRect>>(platform: &Platform,
     } else {
         let rect_middle = rect.x + (rect.w / 2);
 
-        rect_middle - (text.len() as i32 / 2) + 1
+        rect_middle - (text.len() as f32 / 2.0) as i32
     };
 
     let y_ = if let Some(given_y) = y {
