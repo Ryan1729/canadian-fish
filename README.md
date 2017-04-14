@@ -2,9 +2,14 @@
 
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
+
 ##TODO
 -> declaring a suit
-    -> radio buttons and submit button
+    -> remove suit, adding point based on card locations
+      -> show result
+-> other players take turns
+  -> show results of each question
+  -> player isn't actually a special case!
 -> turn transfer in player out of cards on their turn corner case
   -> remove declare button if player is out of cards
   -> select teammate

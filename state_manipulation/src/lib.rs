@@ -6,6 +6,7 @@ use common::Suit::*;
 use common::Value::*;
 use common::MenuState::*;
 use common::Opponent::*;
+use common::Teammate::*;
 use common::SubSuit::*;
 
 use rand::{StdRng, SeedableRng, Rng};
@@ -234,16 +235,19 @@ pub fn game_update_and_render(platform: &Platform,
                               inner,
                               left_mouse_pressed,
                               left_mouse_released,
-                              &|state, subsuit| { state.menu_state = DeclareStep2(subsuit); },
+                              &|state, subsuit| {
+                                   state.menu_state = DeclareStep2(subsuit, [ThePlayer; 6]);
+                               },
                               true)
         }
-        DeclareStep2(subsuit) => {
+        DeclareStep2(subsuit, teammates) => {
             draw_declare_radio_buttons(platform,
                                        state,
                                        inner,
                                        left_mouse_pressed,
                                        left_mouse_released,
-                                       subsuit)
+                                       subsuit,
+                                       teammates)
         }
     }
 
@@ -654,39 +658,141 @@ fn draw_ask_result(platform: &Platform,
 
 }
 
+macro_rules! array_update {
+    ($array:expr, $index: expr, $value: expr) => {{
+        let mut new_array = $array.clone();
+
+        new_array[$index] = $value;
+
+        new_array
+    }}
+}
+
 fn draw_declare_radio_buttons(platform: &Platform,
                               state: &mut State,
                               rect: SpecRect,
                               left_mouse_pressed: bool,
                               left_mouse_released: bool,
-                              subsuit: SubSuit) {
+                              subsuit: SubSuit,
+                              teammates: [Teammate; 6]) {
+    let column_width = (rect.w / 5) - (MENU_OFFSET as f64 / 5.0).round() as i32;
+
+    let labels = ["Player", "TeammateOne", "TeammateTwo"];
+    for i in 0..labels.len() {
+        let label = labels[i];
+        (platform.print_xy)(rect.x + ((i + 1) as i32 * column_width) - (label.len() as i32 / 2),
+                            rect.y,
+                            label);
+
+    }
 
     let pairs = pairs_from_subsuit(subsuit);
+    let len = pairs.len();
 
-    for i in 0..6 {
-        // let (suit, value) = pairs[i];
-        //
-        // if !has_card(&state.player, suit, value) {
-        //
-        //     let index = i as i32;
-        //     let spec = ButtonSpec {
-        //         x: rect.x + MENU_OFFSET + (button_width + MENU_OFFSET) * index,
-        //         y: rect.y,
-        //         w: button_width,
-        //         h: rect.h,
-        //         text: format!("{} of {}", value, suit),
-        //         id: 3345 + index,
-        //     };
-        //
-        //     if do_button(platform,
-        //                  &mut state.ui_context,
-        //                  &spec,
-        //                  left_mouse_pressed,
-        //                  left_mouse_released) {
-        //         state.menu_state = AskStep4(opponent, suit, value);
-        //     }
-        // }
+    for i in 0..len {
+        let (suit, value) = pairs[i];
+
+        let y = rect.y + (((i + 1) as f32 / (len + 1) as f32) * rect.h as f32) as i32;
+
+        (platform.print_xy)(rect.x, y, &(value.to_string() + &suit.to_string()));
+
+
+        let (player, teammate_one, teammate_two) = match teammates[i] {
+            ThePlayer => (true, false, false),
+            TeammateOne => (false, true, false),
+            TeammateTwo => (false, false, true),
+        };
+
+
+        let base_id = i as i32 * 12;
+        if do_radio_button(platform,
+                           &mut state.ui_context,
+                           rect.x + 1 * column_width,
+                           y,
+                           base_id + 1,
+                           player,
+                           left_mouse_pressed,
+                           left_mouse_released) {
+            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, ThePlayer))
+        };
+        if do_radio_button(platform,
+                           &mut state.ui_context,
+                           rect.x + 2 * column_width,
+                           y,
+                           base_id + 2,
+                           teammate_one,
+                           left_mouse_pressed,
+                           left_mouse_released) {
+            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, TeammateOne))
+        };
+        if do_radio_button(platform,
+                           &mut state.ui_context,
+                           rect.x + 3 * column_width,
+                           y,
+                           base_id + 3,
+                           teammate_two,
+                           left_mouse_pressed,
+                           left_mouse_released) {
+            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, TeammateTwo))
+        };
     }
+
+    let button_width = column_width;
+    let button_height = rect.h / 5;
+
+    let spec = ButtonSpec {
+        x: rect.x + rect.w - (button_width + button_width / 2),
+        y: rect.y + rect.h - (button_height + button_height / 2),
+        w: button_width,
+        h: button_height,
+        text: "Submit".to_string(),
+        id: 5667,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &spec,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        println!("submit");
+    }
+}
+
+
+fn do_radio_button(platform: &Platform,
+                   context: &mut UIContext,
+                   x: i32,
+                   y: i32,
+                   id: i32,
+                   checked: bool,
+                   left_mouse_pressed: bool,
+                   left_mouse_released: bool)
+                   -> bool {
+    let mut result = false;
+
+    let mouse_pos = (platform.mouse_position)();
+    //the larger x window is to allow dquare checkbox graphics alongside narrow letters
+    let inside = mouse_pos.y == y && (mouse_pos.x - x).abs() <= 2;
+
+    if context.active == id {
+        if left_mouse_released {
+            result = context.hot == id && inside;
+
+            context.set_not_active();
+        }
+    } else if context.hot == id {
+        if left_mouse_pressed {
+            context.set_active(id);
+        }
+    }
+
+    if inside {
+        context.set_next_hot(id);
+    }
+
+    (platform.print_xy)(x, y, if checked { "☑" } else { "☐" });
+
+    result
 }
 
 

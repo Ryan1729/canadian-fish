@@ -76,7 +76,7 @@ pub enum MenuState {
     AskStep3(Opponent, SubSuit),
     AskStep4(Opponent, Suit, Value),
     DeclareStep1,
-    DeclareStep2(SubSuit),
+    DeclareStep2(SubSuit, [Teammate; 6]),
 }
 
 #[derive(Copy, Clone)]
@@ -130,6 +130,13 @@ pub enum Opponent {
     OpponentZero,
     OpponentOne,
     OpponentTwo,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Teammate {
+    ThePlayer,
+    TeammateOne,
+    TeammateTwo,
 }
 
 pub type Deck = Vec<Card>;

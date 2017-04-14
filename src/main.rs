@@ -90,7 +90,9 @@ fn main() {
                            group: config::InputFilterGroup::Mouse,
                            both: false,
                        }]);
-
+    use bear_lib_terminal::terminal::config::font;
+    terminal::set(font::bitmap(font::Origin::Offset('☐'), "such_graphics.png")
+                      .size(Size::new(16, 16)));
 
 
     let mut app = Application::new();
