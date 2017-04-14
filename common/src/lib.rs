@@ -77,6 +77,7 @@ pub enum MenuState {
     AskStep4(Opponent, Suit, Value),
     DeclareStep1,
     DeclareStep2(SubSuit, [Teammate; 6]),
+    DeclareStep3(SubSuit, [Teammate; 6]),
 }
 
 #[derive(Copy, Clone)]
@@ -137,6 +138,18 @@ pub enum Teammate {
     ThePlayer,
     TeammateOne,
     TeammateTwo,
+}
+
+impl fmt::Display for Teammate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{}",
+               match *self {
+                   ThePlayer => "You",
+                   TeammateOne => "TeammateOne",
+                   TeammateTwo => "TeammateTwo",
+               })
+    }
 }
 
 pub type Deck = Vec<Card>;

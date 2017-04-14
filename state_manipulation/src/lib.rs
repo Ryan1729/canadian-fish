@@ -161,7 +161,13 @@ pub fn game_update_and_render(platform: &Platform,
                 left_mouse_released = true;
             }
             Event::Close |
-            Event::KeyPressed { key: KeyCode::Escape, ctrl: _, shift: _ } => return true,
+            Event::KeyReleased { key: KeyCode::Escape, ctrl: _, shift: _ } => {
+                match state.menu_state {
+                    Main => return true,
+                    _ => state.menu_state = Main,
+                }
+            }
+
             _ => (),
         }
     }
@@ -248,6 +254,15 @@ pub fn game_update_and_render(platform: &Platform,
                                        left_mouse_released,
                                        subsuit,
                                        teammates)
+        }
+        DeclareStep3(subsuit, teammates) => {
+            draw_declare_result(platform,
+                                state,
+                                inner,
+                                left_mouse_pressed,
+                                left_mouse_released,
+                                subsuit,
+                                teammates)
         }
     }
 
@@ -560,7 +575,7 @@ fn draw_ask_suit_menu(platform: &Platform,
     let button_width = (rect.w / 6) - MENU_OFFSET;
     let pairs = pairs_from_subsuit(subsuit);
 
-    for i in 0..6 {
+    for i in 0..pairs.len() {
         let (suit, value) = pairs[i];
 
         if !has_card(&state.player, suit, value) {
@@ -754,10 +769,80 @@ fn draw_declare_radio_buttons(platform: &Platform,
                  &spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-        println!("submit");
+        state.menu_state = DeclareStep3(subsuit, teammates);
     }
 }
 
+fn draw_declare_result(platform: &Platform,
+                       state: &mut State,
+                       rect: SpecRect,
+                       left_mouse_pressed: bool,
+                       left_mouse_released: bool,
+                       subsuit: SubSuit,
+                       teammates: [Teammate; 6]) {
+    let pairs = pairs_from_subsuit(subsuit);
+    let row_width = (rect.w / 6) - (MENU_OFFSET as f64 / 6.0).round() as i32;
+
+    for i in 0..teammates.len() {
+        let (suit, value) = pairs[i];
+
+        let teammate = teammates[i];
+
+        let y = rect.y + (i as i32 * row_width) / 6;
+
+        print_horizontally_centered_line(platform,
+                                         &rect,
+                                         &format!("You said that {} had the {} of {}",
+                                                  teammate,
+                                                  value,
+                                                  suit),
+                                         y);
+
+        let result_str = if has_card(teammate_hand(state, teammate), suit, value) {
+            match teammate {
+                ThePlayer => "And you did have it.",
+                _ => "And they did have it!",
+            }
+        } else {
+            match teammate {
+                ThePlayer => "But you didn't have it?! Nice move, genius.",
+                //TODO say who did have it here
+                _ => "But they didn't have it!",
+            }
+        };
+
+        print_horizontally_centered_line(platform, &rect, result_str, y + 1);
+    }
+
+    let button_width = (rect.w / 3) - (MENU_OFFSET as f64 / 3.0).round() as i32;
+    let button_height = rect.h / 5;
+    let spec = ButtonSpec {
+        x: rect.x + (rect.w - button_width) / 2,
+        y: rect.y + rect.h - button_height,
+        w: button_width,
+        h: button_height,
+        text: "Okay".to_string(),
+        id: 5667,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &spec,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        //TODO find and remove cards and assign point
+
+        state.menu_state = Main;
+    }
+}
+
+fn teammate_hand(state: &State, teammate: Teammate) -> &Hand {
+    match teammate {
+        ThePlayer => &state.player,
+        TeammateOne => &state.teammate_1,
+        TeammateTwo => &state.teammate_2,
+    }
+}
 
 fn do_radio_button(platform: &Platform,
                    context: &mut UIContext,
