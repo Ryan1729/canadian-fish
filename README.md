@@ -16,6 +16,7 @@ This is a single-player only version of a six person card game with rules as des
   -> deciding when to declare
     -> when they know for sure
     -> handle player's team running out of cards
+    -> handle opponent's team running out of cards
 -> polish?
     -> breadcrumbs in ask menus?
     -> manual hand sort?
@@ -23,9 +24,6 @@ This is a single-player only version of a six person card game with rules as des
       -> window arrows change to shifting arrows
       -> seleceted card is swapped with adjacent cards
       -> insert cards at whichever index binary_search Errs with
-    -> does teammate selction come up enough that the CPU should have a hueristic?
-      -> almost certainly *not* worth having a model of what other players know,
-        unless that comes up for other reasons
 
 ## Installation for Compilation
 

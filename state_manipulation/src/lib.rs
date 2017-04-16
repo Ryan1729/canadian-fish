@@ -247,11 +247,17 @@ pub fn game_update_and_render(platform: &Platform,
                 }
                 TeammatePlayer(teammate) => {
                     state.current_player =
-                        or_available_opponent(state, get_available_teammate(state, Some(teammate)))
+                        or_available_opponent(state,
+                                              get_available_teammate(state,
+                                                                     Some(teammate),
+                                                                     MostCards))
                 }
                 OpponentPlayer(opponent) => {
                     state.current_player =
-                        or_available_teammate(state, get_available_opponent(state, Some(opponent)))
+                        or_available_teammate(state,
+                                              get_available_opponent(state,
+                                                                     Some(opponent),
+                                                                     MostCards))
                 }
             }
 
@@ -371,8 +377,21 @@ pub fn game_update_and_render(platform: &Platform,
     false
 }
 
-fn get_available_teammate(state: &State, exclude: Option<Teammate>) -> Option<Teammate> {
-    let teammates = Teammate::all_values();
+enum PlayerChoiceHeuristic {
+    MostCards,
+    FewestCards,
+}
+use PlayerChoiceHeuristic::*;
+fn get_available_teammate(state: &State,
+                          exclude: Option<Teammate>,
+                          heuristic: PlayerChoiceHeuristic)
+                          -> Option<Teammate> {
+    let mut teammates = Teammate::all_values();
+
+    match heuristic {
+        MostCards => teammates.sort_by_key(|&t| std::usize::MAX - teammate_hand(state, t).len()),
+        FewestCards => teammates.sort_by_key(|&t| teammate_hand(state, t).len()),
+    };
 
     //Yes there is some duplication, but it means we don't have to futz around
     //with trait object types.
@@ -390,8 +409,16 @@ fn get_available_teammate(state: &State, exclude: Option<Teammate>) -> Option<Te
     }
 
 }
-fn get_available_opponent(state: &State, exclude: Option<Opponent>) -> Option<Opponent> {
-    let opponents = Opponent::all_values();
+fn get_available_opponent(state: &State,
+                          exclude: Option<Opponent>,
+                          heuristic: PlayerChoiceHeuristic)
+                          -> Option<Opponent> {
+    let mut opponents = Opponent::all_values();
+
+    match heuristic {
+        MostCards => opponents.sort_by_key(|&o| std::usize::MAX - opponent_hand(state, o).len()),
+        FewestCards => opponents.sort_by_key(|&o| opponent_hand(state, o).len()),
+    };
 
     if let Some(excluded) = exclude {
         opponents.iter()
@@ -638,7 +665,7 @@ fn or_available_teammate(state: &State, potential_opponent: Option<Opponent>) ->
     if let Some(available_opponent) = potential_opponent {
         Some(OpponentPlayer(available_opponent))
     } else {
-        if let Some(available_teammate) = get_available_teammate(state, None) {
+        if let Some(available_teammate) = get_available_teammate(state, None, FewestCards) {
             Some(TeammatePlayer(available_teammate))
         } else {
             None
@@ -649,7 +676,7 @@ fn or_available_opponent(state: &State, potential_teammate: Option<Teammate>) ->
     if let Some(available_teammate) = potential_teammate {
         Some(TeammatePlayer(available_teammate))
     } else {
-        if let Some(available_opponent) = get_available_opponent(state, None) {
+        if let Some(available_opponent) = get_available_opponent(state, None, FewestCards) {
             Some(OpponentPlayer(available_opponent))
         } else {
             None
