@@ -3,16 +3,19 @@
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
 
-##TODO
--> declaring a suit
-    -> remove suit, adding point based on card locations
--> other players take turns
-  -> show results of each question
-  -> player isn't actually a special case!
+##TODO    
 -> turn transfer in player out of cards on their turn corner case
-  -> remove declare button if player is out of cards
   -> select teammate
-
+    -> test player teammate selection
+    -> CPU can select randomly for now.
+  -> remove declare button if player is out of cards
+-> other players take turns
+  -> question
+    -> show results of each question
+    -> player isn't actually a special case!
+  -> declare
+  -> deciding when to declare
+    -> when they know for sure
     -> handle player's team running out of cards
 -> polish?
     -> breadcrumbs in ask menus?

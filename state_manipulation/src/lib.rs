@@ -5,9 +5,12 @@ use common::*;
 use common::Suit::*;
 use common::Value::*;
 use common::MenuState::*;
+use common::Declaration::*;
 use common::Opponent::*;
 use common::Teammate::*;
+use common::Player::*;
 use common::SubSuit::*;
+use common::AllValues;
 
 use rand::{StdRng, SeedableRng, Rng};
 
@@ -71,6 +74,8 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_2: opponent_2,
         opponent_3: opponent_3,
         menu_state: Main,
+        declaration: None,
+        current_player: Some(TeammatePlayer(ThePlayer)),
         ui_context: UIContext {
             hot: 0,
             active: 0,
@@ -78,6 +83,8 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         },
         card_offset: 0,
         suits_in_play_bits: 0xFF,
+        player_points: 0,
+        opponent_points: 0,
     }
 }
 
@@ -191,79 +198,130 @@ pub fn game_update_and_render(platform: &Platform,
     };
 
     state.ui_context.frame_init();
-    match state.menu_state {
-        Main => {
-            draw_main_menu(platform,
-                           state,
-                           inner,
-                           left_mouse_pressed,
-                           left_mouse_released)
+
+    if let Some(declaration) = state.declaration {
+        match declaration {
+            DeclareStep1 => {
+                draw_subsuit_menu(platform,
+                                  state,
+                                  inner,
+                                  left_mouse_pressed,
+                                  left_mouse_released,
+                                  &|state, subsuit| {
+                                       state.declaration = Some(DeclareStep2(subsuit,
+                                                                             [ThePlayer; 6]));
+                                   },
+                                  true)
+            }
+            DeclareStep2(subsuit, teammates) => {
+                draw_declare_radio_buttons(platform,
+                                           state,
+                                           inner,
+                                           left_mouse_pressed,
+                                           left_mouse_released,
+                                           subsuit,
+                                           teammates)
+            }
+            DeclareStep3(player, subsuit, teammates) => {
+                draw_declare_result(platform,
+                                    state,
+                                    inner,
+                                    left_mouse_pressed,
+                                    left_mouse_released,
+                                    subsuit,
+                                    teammates,
+                                    player)
+            }
+
         }
-        AskStep1 => {
-            draw_ask_opponent_menu(platform,
+    } else if let Some(current_player) = state.current_player {
+
+        if get_hand(state, current_player).len() == 0 {
+            match current_player {
+                TeammatePlayer(ThePlayer) => {
+                    draw_teammate_selection(platform,
+                                            state,
+                                            inner,
+                                            left_mouse_pressed,
+                                            left_mouse_released)
+                }
+                TeammatePlayer(teammate) => {
+                    state.current_player = if let Some(available_teammate) =
+                        get_available_teammate(state, Some(teammate)) {
+                        Some(TeammatePlayer(available_teammate))
+                    } else {
+                        if let Some(available_opponent) = get_available_opponent(state, None) {
+                            Some(OpponentPlayer(available_opponent))
+                        } else {
+                            None
+                        }
+                    }
+                }
+                OpponentPlayer(opponent) => {
+                    state.current_player = if let Some(available_opponent) =
+                        get_available_opponent(state, Some(opponent)) {
+                        Some(OpponentPlayer(available_opponent))
+                    } else {
+                        if let Some(available_teammate) = get_available_teammate(state, None) {
+                            Some(TeammatePlayer(available_teammate))
+                        } else {
+                            None
+                        }
+                    }
+                }
+            }
+
+        } else {
+            match state.menu_state {
+                Main => {
+                    draw_main_menu(platform,
                                    state,
                                    inner,
                                    left_mouse_pressed,
                                    left_mouse_released)
-        }
-        AskStep2(opponent) => {
-            draw_subsuit_menu(platform,
-                              state,
-                              inner,
-                              left_mouse_pressed,
-                              left_mouse_released,
-                              &|state, subsuit| { state.menu_state = AskStep3(opponent, subsuit); },
-                              false)
-        }
-        AskStep3(opponent, subsuit) => {
-            draw_ask_suit_menu(platform,
-                               state,
-                               inner,
-                               left_mouse_pressed,
-                               left_mouse_released,
-                               opponent,
-                               subsuit)
-        }
-        AskStep4(opponent, suit, value) => {
-            draw_ask_result(platform,
-                            state,
-                            inner,
-                            left_mouse_pressed,
-                            left_mouse_released,
-                            opponent,
-                            suit,
-                            value)
-        }
-
-        DeclareStep1 => {
-            draw_subsuit_menu(platform,
-                              state,
-                              inner,
-                              left_mouse_pressed,
-                              left_mouse_released,
-                              &|state, subsuit| {
-                                   state.menu_state = DeclareStep2(subsuit, [ThePlayer; 6]);
-                               },
-                              true)
-        }
-        DeclareStep2(subsuit, teammates) => {
-            draw_declare_radio_buttons(platform,
+                }
+                AskStep1 => {
+                    draw_ask_opponent_menu(platform,
+                                           state,
+                                           inner,
+                                           left_mouse_pressed,
+                                           left_mouse_released)
+                }
+                AskStep2(opponent) => {
+                    draw_subsuit_menu(platform,
+                                      state,
+                                      inner,
+                                      left_mouse_pressed,
+                                      left_mouse_released,
+                                      &|state, subsuit| {
+                                           state.menu_state = AskStep3(opponent, subsuit);
+                                       },
+                                      false)
+                }
+                AskStep3(opponent, subsuit) => {
+                    draw_ask_suit_menu(platform,
                                        state,
                                        inner,
                                        left_mouse_pressed,
                                        left_mouse_released,
-                                       subsuit,
-                                       teammates)
+                                       opponent,
+                                       subsuit)
+                }
+                AskStep4(opponent, suit, value) => {
+                    draw_ask_result(platform,
+                                    state,
+                                    inner,
+                                    left_mouse_pressed,
+                                    left_mouse_released,
+                                    opponent,
+                                    suit,
+                                    value)
+                }
+
+            }
         }
-        DeclareStep3(subsuit, teammates) => {
-            draw_declare_result(platform,
-                                state,
-                                inner,
-                                left_mouse_pressed,
-                                left_mouse_released,
-                                subsuit,
-                                teammates)
-        }
+    } else {
+        //TODO handle game end
     }
 
     draw(platform, state);
@@ -323,11 +381,56 @@ pub fn game_update_and_render(platform: &Platform,
                  &declare_button,
                  left_mouse_pressed,
                  left_mouse_released) {
-        state.menu_state = DeclareStep1;
+        state.declaration = Some(DeclareStep1);
     }
 
     false
 }
+
+fn get_available_teammate(state: &State, exclude: Option<Teammate>) -> Option<Teammate> {
+    let teammates = Teammate::all_values();
+
+    //Yes there is some duplication, but it means we don't have to futz around
+    //with trait object types.
+    if let Some(excluded) = exclude {
+        teammates.iter().filter(|&&t| excluded != t)
+            .filter(|&&t| teammate_hand(state, t).len() > 0)
+            .next()
+            .cloned()
+    } else {
+        teammates.iter().filter(|&&t| teammate_hand(state, t).len() > 0).next().cloned()
+    }
+
+}
+fn get_available_opponent(state: &State, exclude: Option<Opponent>) -> Option<Opponent> {
+    let opponents = Opponent::all_values();
+
+    if let Some(excluded) = exclude {
+        opponents.iter().filter(|&&t| excluded != t)
+            .filter(|&&t| opponent_hand(state, t).len() > 0)
+            .next()
+            .cloned()
+    } else {
+        opponents.iter().filter(|&&t| opponent_hand(state, t).len() > 0).next().cloned()
+    }
+
+}
+
+fn get_hand(state: &State, player: Player) -> &Hand {
+    match player {
+        TeammatePlayer(t) => teammate_hand(state, t),
+        OpponentPlayer(o) => opponent_hand(state, o),
+    }
+}
+
+fn opponent_hand(state: &State, opponent: Opponent) -> &Hand {
+    match opponent {
+        OpponentZero => &state.opponent_1,
+        OpponentOne => &state.opponent_2,
+        OpponentTwo => &state.opponent_3,
+    }
+}
+
 
 const HAND_ARROW_WIDTH: i32 = 4;
 const HAND_ARROW_HEIGHT: i32 = 3;
@@ -396,6 +499,14 @@ impl AsRef<SpecRect> for ButtonSpec {
         unsafe { std::mem::transmute::<&ButtonSpec, &SpecRect>(self) }
     }
 }
+
+fn draw_teammate_selection(platform: &Platform,
+                  state: &mut State,
+                  rect: SpecRect,
+                  left_mouse_pressed: bool,
+                  left_mouse_released: bool) {
+                      println!("TODO: draw_teammate_selection");
+                  }
 
 fn draw_main_menu(platform: &Platform,
                   state: &mut State,
@@ -728,7 +839,7 @@ fn draw_declare_radio_buttons(platform: &Platform,
                            player,
                            left_mouse_pressed,
                            left_mouse_released) {
-            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, ThePlayer))
+            state.declaration = Some(DeclareStep2(subsuit, array_update!(teammates, i, ThePlayer)))
         };
         if do_radio_button(platform,
                            &mut state.ui_context,
@@ -738,7 +849,8 @@ fn draw_declare_radio_buttons(platform: &Platform,
                            teammate_one,
                            left_mouse_pressed,
                            left_mouse_released) {
-            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, TeammateOne))
+            state.declaration = Some(DeclareStep2(subsuit,
+                                                  array_update!(teammates, i, TeammateOne)))
         };
         if do_radio_button(platform,
                            &mut state.ui_context,
@@ -748,7 +860,8 @@ fn draw_declare_radio_buttons(platform: &Platform,
                            teammate_two,
                            left_mouse_pressed,
                            left_mouse_released) {
-            state.menu_state = DeclareStep2(subsuit, array_update!(teammates, i, TeammateTwo))
+            state.declaration = Some(DeclareStep2(subsuit,
+                                                  array_update!(teammates, i, TeammateTwo)))
         };
     }
 
@@ -769,7 +882,7 @@ fn draw_declare_radio_buttons(platform: &Platform,
                  &spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-        state.menu_state = DeclareStep3(subsuit, teammates);
+        state.declaration = Some(DeclareStep3(TeammatePlayer(ThePlayer), subsuit, teammates));
     }
 }
 
@@ -779,7 +892,8 @@ fn draw_declare_result(platform: &Platform,
                        left_mouse_pressed: bool,
                        left_mouse_released: bool,
                        subsuit: SubSuit,
-                       teammates: [Teammate; 6]) {
+                       teammates: [Teammate; 6],
+                       player: Player) {
     let pairs = pairs_from_subsuit(subsuit);
     let row_width = (rect.w / 6) - (MENU_OFFSET as f64 / 6.0).round() as i32;
 
@@ -830,10 +944,56 @@ fn draw_declare_result(platform: &Platform,
                  &spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-        //TODO find and remove cards and assign point
+        let mut all_correct = true;
+        for i in 0..teammates.len() {
+            let (suit, value) = pairs[i];
 
-        state.menu_state = Main;
+            let teammate = teammates[i];
+
+            if let Some(_) = remove_from_hand(teammate_hand_mut(state, teammate), suit, value) {
+                //card was where it was expected to be
+            } else {
+                all_correct = false;
+                for hand in all_hands_mut(state).iter_mut() {
+                    if let Some(_) = remove_from_hand(hand, suit, value) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if all_correct {
+            state.player_points += 1;
+        } else {
+            state.opponent_points += 1;
+        }
+
+        state.declaration = None;
     }
+}
+
+fn all_hands_mut(state: &mut State) -> Vec<&mut Vec<Card>> {
+    vec![&mut state.player,
+         &mut state.teammate_1,
+         &mut state.teammate_2,
+         &mut state.opponent_1,
+         &mut state.opponent_2,
+         &mut state.opponent_3]
+}
+
+fn remove_from_hand(hand: &mut Hand, suit: Suit, value: Value) -> Option<Card> {
+    for i in 0..hand.len() {
+        //using hand[i] twice rather than "let card  = hand[i];"
+        //is done to appease the borrow checker.
+        if hand[i].suit == suit && hand[i].value == value {
+            //we do remove instead of swap_remove
+            //because we want to keep the player's
+            //hand sorted.
+            return Some(hand.remove(i));
+        }
+    }
+
+    None
 }
 
 fn teammate_hand(state: &State, teammate: Teammate) -> &Hand {
@@ -841,6 +1001,13 @@ fn teammate_hand(state: &State, teammate: Teammate) -> &Hand {
         ThePlayer => &state.player,
         TeammateOne => &state.teammate_1,
         TeammateTwo => &state.teammate_2,
+    }
+}
+fn teammate_hand_mut(state: &mut State, teammate: Teammate) -> &mut Hand {
+    match teammate {
+        ThePlayer => &mut state.player,
+        TeammateOne => &mut state.teammate_1,
+        TeammateTwo => &mut state.teammate_2,
     }
 }
 

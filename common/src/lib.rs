@@ -26,7 +26,6 @@ pub struct Platform {
 
 pub struct State {
     pub rng: StdRng,
-    pub title_screen: bool,
     pub player: Hand,
     pub teammate_1: Hand,
     pub teammate_2: Hand,
@@ -34,9 +33,14 @@ pub struct State {
     pub opponent_2: Hand,
     pub opponent_3: Hand,
     pub menu_state: MenuState,
+    pub declaration: Option<Declaration>,
     pub ui_context: UIContext,
+    pub current_player: Option<Player>,
     pub card_offset: usize,
     pub suits_in_play_bits: u8,
+    pub player_points: u8,
+    pub opponent_points: u8,
+    pub title_screen: bool,
 }
 
 pub type UiId = i32;
@@ -75,9 +79,13 @@ pub enum MenuState {
     AskStep2(Opponent),
     AskStep3(Opponent, SubSuit),
     AskStep4(Opponent, Suit, Value),
+}
+
+#[derive(Copy, Clone)]
+pub enum Declaration {
     DeclareStep1,
     DeclareStep2(SubSuit, [Teammate; 6]),
-    DeclareStep3(SubSuit, [Teammate; 6]),
+    DeclareStep3(Player, SubSuit, [Teammate; 6]),
 }
 
 #[derive(Copy, Clone)]
@@ -126,18 +134,53 @@ impl From<SubSuit> for u8 {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+pub trait AllValues {
+    fn all_values() -> Vec<Self> where Self: std::marker::Sized;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Player {
+    OpponentPlayer(Opponent),
+    TeammatePlayer(Teammate),
+}
+use Player::*;
+
+impl AllValues for Player {
+    fn all_values() -> Vec<Player> {
+        Opponent::all_values()
+            .iter()
+            .map(|o| OpponentPlayer(*o))
+            .chain(Teammate::all_values().iter().map(|t| TeammatePlayer(*t)))
+            .collect()
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Opponent {
     OpponentZero,
     OpponentOne,
     OpponentTwo,
 }
+use Opponent::*;
 
-#[derive(Copy, Clone, Debug)]
+impl AllValues for Opponent {
+    fn all_values() -> Vec<Opponent> {
+        vec![OpponentZero, OpponentOne, OpponentTwo]
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Teammate {
     ThePlayer,
     TeammateOne,
     TeammateTwo,
+}
+use Teammate::*;
+
+impl AllValues for Teammate {
+    fn all_values() -> Vec<Teammate> {
+        vec![ThePlayer, TeammateOne, TeammateTwo]
+    }
 }
 
 impl fmt::Display for Teammate {
