@@ -6,9 +6,8 @@ This is a single-player only version of a six person card game with rules as des
 ##TODO    
 -> turn transfer in player out of cards on their turn corner case
   -> select teammate
-    -> test player teammate selection
-    -> CPU can select randomly for now.
   -> remove declare button if player is out of cards
+-> remove declare button on declare results screen
 -> other players take turns
   -> question
     -> show results of each question
@@ -24,6 +23,9 @@ This is a single-player only version of a six person card game with rules as des
       -> window arrows change to shifting arrows
       -> seleceted card is swapped with adjacent cards
       -> insert cards at whichever index binary_search Errs with
+    -> does teammate selction come up enough that the CPU should have a hueristic?
+      -> almost certainly *not* worth having a model of what other players know,
+        unless that comes up for other reasons
 
 ## Installation for Compilation
 

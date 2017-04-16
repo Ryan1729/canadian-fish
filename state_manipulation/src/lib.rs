@@ -246,28 +246,12 @@ pub fn game_update_and_render(platform: &Platform,
                                             left_mouse_released)
                 }
                 TeammatePlayer(teammate) => {
-                    state.current_player = if let Some(available_teammate) =
-                        get_available_teammate(state, Some(teammate)) {
-                        Some(TeammatePlayer(available_teammate))
-                    } else {
-                        if let Some(available_opponent) = get_available_opponent(state, None) {
-                            Some(OpponentPlayer(available_opponent))
-                        } else {
-                            None
-                        }
-                    }
+                    state.current_player =
+                        or_available_opponent(state, get_available_teammate(state, Some(teammate)))
                 }
                 OpponentPlayer(opponent) => {
-                    state.current_player = if let Some(available_opponent) =
-                        get_available_opponent(state, Some(opponent)) {
-                        Some(OpponentPlayer(available_opponent))
-                    } else {
-                        if let Some(available_teammate) = get_available_teammate(state, None) {
-                            Some(TeammatePlayer(available_teammate))
-                        } else {
-                            None
-                        }
-                    }
+                    state.current_player =
+                        or_available_teammate(state, get_available_opponent(state, Some(opponent)))
                 }
             }
 
@@ -393,12 +377,16 @@ fn get_available_teammate(state: &State, exclude: Option<Teammate>) -> Option<Te
     //Yes there is some duplication, but it means we don't have to futz around
     //with trait object types.
     if let Some(excluded) = exclude {
-        teammates.iter().filter(|&&t| excluded != t)
+        teammates.iter()
+            .filter(|&&t| excluded != t)
             .filter(|&&t| teammate_hand(state, t).len() > 0)
             .next()
             .cloned()
     } else {
-        teammates.iter().filter(|&&t| teammate_hand(state, t).len() > 0).next().cloned()
+        teammates.iter()
+            .filter(|&&t| teammate_hand(state, t).len() > 0)
+            .next()
+            .cloned()
     }
 
 }
@@ -406,12 +394,16 @@ fn get_available_opponent(state: &State, exclude: Option<Opponent>) -> Option<Op
     let opponents = Opponent::all_values();
 
     if let Some(excluded) = exclude {
-        opponents.iter().filter(|&&t| excluded != t)
+        opponents.iter()
+            .filter(|&&t| excluded != t)
             .filter(|&&t| opponent_hand(state, t).len() > 0)
             .next()
             .cloned()
     } else {
-        opponents.iter().filter(|&&t| opponent_hand(state, t).len() > 0).next().cloned()
+        opponents.iter()
+            .filter(|&&t| opponent_hand(state, t).len() > 0)
+            .next()
+            .cloned()
     }
 
 }
@@ -500,14 +492,6 @@ impl AsRef<SpecRect> for ButtonSpec {
     }
 }
 
-fn draw_teammate_selection(platform: &Platform,
-                  state: &mut State,
-                  rect: SpecRect,
-                  left_mouse_pressed: bool,
-                  left_mouse_released: bool) {
-                      println!("TODO: draw_teammate_selection");
-                  }
-
 fn draw_main_menu(platform: &Platform,
                   state: &mut State,
                   rect: SpecRect,
@@ -591,6 +575,88 @@ fn draw_ask_opponent_menu(platform: &Platform,
         state.menu_state = AskStep2(OpponentTwo);
     }
 }
+
+
+fn draw_teammate_selection(platform: &Platform,
+                           state: &mut State,
+                           rect: SpecRect,
+                           left_mouse_pressed: bool,
+                           left_mouse_released: bool) {
+
+    let teammates = Teammate::all_values();
+
+    let filtered_teammates: Vec<&Teammate> = teammates.iter()
+        .filter(|&&t| ThePlayer != t)
+        .filter(|&&t| teammate_hand(state, t).len() > 0)
+        .collect();
+
+    if filtered_teammates.len() > 1 {
+        let button_width = (rect.w / 2) - (MENU_OFFSET / 2);
+
+        let spec_one = ButtonSpec {
+            x: rect.x,
+            y: rect.y,
+            w: button_width,
+            h: rect.h,
+            text: "TeammateOne".to_string(),
+            id: 123,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &spec_one,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.current_player = Some(TeammatePlayer(TeammateOne))
+        }
+
+        let spec_two = ButtonSpec {
+            x: rect.x + button_width + MENU_OFFSET,
+            y: rect.y,
+            w: button_width,
+            h: rect.h,
+            text: "TeammateTwo".to_string(),
+            id: 234,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &spec_two,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.current_player = Some(TeammatePlayer(TeammateTwo))
+        }
+    } else {
+        //no choice so need for buttons
+        state.current_player = or_available_opponent(state,
+                                                     filtered_teammates.get(0).cloned().cloned());
+    }
+
+}
+
+fn or_available_teammate(state: &State, potential_opponent: Option<Opponent>) -> Option<Player> {
+    if let Some(available_opponent) = potential_opponent {
+        Some(OpponentPlayer(available_opponent))
+    } else {
+        if let Some(available_teammate) = get_available_teammate(state, None) {
+            Some(TeammatePlayer(available_teammate))
+        } else {
+            None
+        }
+    }
+}
+fn or_available_opponent(state: &State, potential_teammate: Option<Teammate>) -> Option<Player> {
+    if let Some(available_teammate) = potential_teammate {
+        Some(TeammatePlayer(available_teammate))
+    } else {
+        if let Some(available_opponent) = get_available_opponent(state, None) {
+            Some(OpponentPlayer(available_opponent))
+        } else {
+            None
+        }
+    }
+}
+
 fn draw_subsuit_menu(platform: &Platform,
                      state: &mut State,
                      rect: SpecRect,
