@@ -20,6 +20,7 @@ This is a single-player only version of a six person card game with rules as des
       -> window arrows change to shifting arrows
       -> seleceted card is swapped with adjacent cards
       -> insert cards at whichever index binary_search Errs with
+    -> let player decide at game start how first player will be determined
 
 ## Installation for Compilation
 

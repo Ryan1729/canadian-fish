@@ -2,7 +2,7 @@ extern crate rand;
 
 use std::fmt;
 
-use rand::StdRng;
+use rand::{StdRng, Rand, Rng};
 use std::cmp::Ordering;
 use std::cmp::Ordering::{Less, Equal, Greater};
 
@@ -145,6 +145,17 @@ pub enum Player {
 }
 use Player::*;
 
+impl fmt::Display for Player {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{}",
+               match *self {
+                   OpponentPlayer(o) => o.to_string(),
+                   TeammatePlayer(t) => t.to_string(),
+               })
+    }
+}
+
 impl AllValues for Player {
     fn all_values() -> Vec<Player> {
         Opponent::all_values()
@@ -152,6 +163,14 @@ impl AllValues for Player {
             .map(|o| OpponentPlayer(*o))
             .chain(Teammate::all_values().iter().map(|t| TeammatePlayer(*t)))
             .collect()
+    }
+}
+
+impl Rand for Player {
+    fn rand<R: Rng>(rng: &mut R) -> Self {
+        let players = Player::all_values();
+
+        *rng.choose(players.as_slice()).unwrap_or(&TeammatePlayer(ThePlayer))
     }
 }
 
@@ -166,6 +185,18 @@ use Opponent::*;
 impl AllValues for Opponent {
     fn all_values() -> Vec<Opponent> {
         vec![OpponentZero, OpponentOne, OpponentTwo]
+    }
+}
+
+impl fmt::Display for Opponent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{}",
+               match *self {
+                   OpponentZero => "OpponentZero",
+                   OpponentOne => "OpponentOne",
+                   OpponentTwo => "OpponentTwo",
+               })
     }
 }
 

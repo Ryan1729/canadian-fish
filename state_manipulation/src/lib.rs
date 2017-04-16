@@ -64,6 +64,9 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
 
     player.sort();
 
+    //TODO let player decide at game start how first player will be determined
+    let current_player = Some(rng.gen::<Player>());
+
     State {
         rng: rng,
         title_screen: title_screen,
@@ -75,7 +78,7 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_3: opponent_3,
         menu_state: Main,
         declaration: None,
-        current_player: Some(TeammatePlayer(ThePlayer)),
+        current_player: current_player,
         ui_context: UIContext {
             hot: 0,
             active: 0,
@@ -313,6 +316,22 @@ pub fn game_update_and_render(platform: &Platform,
     } else {
         //TODO handle game end
     }
+
+    let screen_rect = SpecRect {
+        x: 0,
+        y: 0,
+        w: size.width,
+        h: size.height,
+    };
+
+    if let Some(player) = state.current_player {
+        let turn_string = match player {
+            TeammatePlayer(ThePlayer) => "Your turn".to_string(),
+            _ => player.to_string() + "'s turn",
+        };
+
+        print_horizontally_centered_line(platform, &screen_rect, &turn_string, 0);
+    };
 
     draw(platform, state);
 
