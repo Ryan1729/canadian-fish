@@ -357,21 +357,30 @@ pub fn game_update_and_render(platform: &Platform,
         }
     }
 
-    let declare_button = ButtonSpec {
-        x: size.width - DECLARE_BUTTON_WIDTH - MENU_OFFSET,
-        y: outer.y + outer.h + MENU_OFFSET,
-        w: DECLARE_BUTTON_WIDTH,
-        h: 5,
-        text: "Declare".to_string(),
-        id: 3445,
+    let show_declare_button = match state.declaration {
+        Some(DeclareStep3(_, _, _)) => false,
+        _ => teammate_hand(state, ThePlayer).len() > 0,
     };
 
-    if do_button(platform,
-                 &mut state.ui_context,
-                 &declare_button,
-                 left_mouse_pressed,
-                 left_mouse_released) {
-        state.declaration = Some(DeclareStep1);
+    if show_declare_button {
+
+
+        let declare_button = ButtonSpec {
+            x: size.width - DECLARE_BUTTON_WIDTH - MENU_OFFSET,
+            y: outer.y + outer.h + MENU_OFFSET,
+            w: DECLARE_BUTTON_WIDTH,
+            h: 5,
+            text: "Declare".to_string(),
+            id: 3445,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &declare_button,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            state.declaration = Some(DeclareStep1);
+        }
     }
 
     false

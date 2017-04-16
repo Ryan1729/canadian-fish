@@ -4,10 +4,6 @@ This is a single-player only version of a six person card game with rules as des
 
 
 ##TODO    
--> turn transfer in player out of cards on their turn corner case
-  -> select teammate
-  -> remove declare button if player is out of cards
--> remove declare button on declare results screen
 -> other players take turns
   -> question
     -> show results of each question
