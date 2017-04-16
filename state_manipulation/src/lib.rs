@@ -9,6 +9,7 @@ use common::Declaration::*;
 use common::Opponent::*;
 use common::Teammate::*;
 use common::Player::*;
+use common::AskVector::*;
 use common::SubSuit::*;
 use common::AllValues;
 
@@ -300,13 +301,13 @@ pub fn game_update_and_render(platform: &Platform,
                                        opponent,
                                        subsuit)
                 }
-                AskStep4(opponent, suit, value) => {
+                AskStep4(ask_vector, suit, value) => {
                     draw_ask_result(platform,
                                     state,
                                     inner,
                                     left_mouse_pressed,
                                     left_mouse_released,
-                                    opponent,
+                                    ask_vector,
                                     suit,
                                     value)
                 }
@@ -827,7 +828,12 @@ fn draw_ask_suit_menu(platform: &Platform,
                          &spec,
                          left_mouse_pressed,
                          left_mouse_released) {
-                state.menu_state = AskStep4(opponent, suit, value);
+
+                state.menu_state = if let Some(TeammatePlayer(teammate)) = state.current_player {
+                    AskStep4(ToOpponent(teammate, opponent), suit, value)
+                } else {
+                    Main
+                }
             }
         }
     }
@@ -839,25 +845,26 @@ fn draw_ask_result(platform: &Platform,
                    rect: SpecRect,
                    left_mouse_pressed: bool,
                    left_mouse_released: bool,
-                   opponent: Opponent,
+                   ask_vector: AskVector,
                    suit: Suit,
                    value: Value) {
     let button_width = (rect.w / 3) - (MENU_OFFSET as f64 / 3.0).round() as i32;
     let button_height = rect.h / 5;
 
-
-    let hand = match opponent {
-        OpponentZero => &mut state.opponent_1,
-        OpponentOne => &mut state.opponent_2,
-        OpponentTwo => &mut state.opponent_3,
+    let (target_has_card, target_name) = match ask_vector {
+        ToTeammate(_, target) => {
+            (has_card(teammate_hand(state, target), suit, value), teammate_name(target))
+        }
+        ToOpponent(_, target) => {
+            (has_card(opponent_hand(state, target), suit, value), opponent_name(target))
+        }
     };
 
-    let question = &format!("\"{:?}, do you have a {} of {}?\"", opponent, value, suit);
+    let question = &format!("\"{}, do you have a {} of {}?\"", target_name, value, suit);
 
     print_horizontally_centered_line(platform, &rect, question, rect.y + MENU_OFFSET);
 
-    let opponent_has_card = has_card(hand, suit, value);
-    if opponent_has_card {
+    if target_has_card {
         print_centered_line(platform, &rect, "\"Yes, I do. Here you go.\"");
     } else {
         print_centered_line(platform, &rect, "\"Nope! Now it's my turn!\"");
@@ -868,7 +875,7 @@ fn draw_ask_result(platform: &Platform,
         y: rect.y + rect.h - button_height,
         w: button_width,
         h: button_height,
-        text: if opponent_has_card {
+        text: if target_has_card {
             "Aha!".to_string()
         } else {
             "Oh...".to_string()
@@ -882,27 +889,53 @@ fn draw_ask_result(platform: &Platform,
                  left_mouse_pressed,
                  left_mouse_released) {
 
-        if opponent_has_card {
-            let mut index = 0;
-            for card in hand.iter() {
-                if card.suit == suit && card.value == value {
-                    break;
+        if target_has_card {
+            let taken_card = {
+                let mut index = 0;
+                let target_hand = match ask_vector {
+                    ToTeammate(_, target) => teammate_hand_mut(state, target),
+                    ToOpponent(_, target) => opponent_hand_mut(state, target),
+                };
+                for card in target_hand.iter() {
+                    if card.suit == suit && card.value == value {
+                        break;
+                    }
+
+                    index += 1;
                 }
 
-                index += 1;
-            }
+                if index < target_hand.len() {
+                    Some(target_hand.swap_remove(index))
+                } else {
+                    None
+                }
+            };
 
-            if index < hand.len() {
-                let taken_card = hand.swap_remove(index);
-
-                if let Err(insertion_index) = state.player.binary_search(&taken_card) {
-                    state.player.insert(insertion_index, taken_card);
+            if let Some(card) = taken_card {
+                let asker_hand = match ask_vector {
+                    ToTeammate(source, _) => opponent_hand_mut(state, source),
+                    ToOpponent(source, _) => teammate_hand_mut(state, source),
+                };
+                if let Err(insertion_index) = asker_hand.binary_search(&card) {
+                    asker_hand.insert(insertion_index, card);
                 }
             }
+
         }
         state.menu_state = Main;
     }
 
+}
+
+fn teammate_name(teammate: Teammate) -> String {
+    match teammate {
+        ThePlayer => "Player".to_string(),
+        _ => teammate.to_string(),
+    }
+}
+
+fn opponent_name(opponent: Opponent) -> String {
+    opponent.to_string()
 }
 
 macro_rules! array_update {
@@ -1129,6 +1162,13 @@ fn teammate_hand_mut(state: &mut State, teammate: Teammate) -> &mut Hand {
         ThePlayer => &mut state.player,
         TeammateOne => &mut state.teammate_1,
         TeammateTwo => &mut state.teammate_2,
+    }
+}
+fn opponent_hand_mut(state: &mut State, opponent: Opponent) -> &mut Hand {
+    match opponent {
+        OpponentZero => &mut state.opponent_1,
+        OpponentOne => &mut state.opponent_2,
+        OpponentTwo => &mut state.opponent_3,
     }
 }
 

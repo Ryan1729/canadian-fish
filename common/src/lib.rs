@@ -78,7 +78,13 @@ pub enum MenuState {
     AskStep1,
     AskStep2(Opponent),
     AskStep3(Opponent, SubSuit),
-    AskStep4(Opponent, Suit, Value),
+    AskStep4(AskVector, Suit, Value),
+}
+
+#[derive(Copy, Clone)]
+pub enum AskVector {
+    ToTeammate(Opponent, Teammate),
+    ToOpponent(Teammate, Opponent),
 }
 
 #[derive(Copy, Clone)]
