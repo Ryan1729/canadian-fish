@@ -1026,12 +1026,12 @@ fn draw_ask_result(platform: &Platform,
     let button_width = (rect.w / 3) - (MENU_OFFSET as f64 / 3.0).round() as i32;
     let button_height = rect.h / 5;
 
-    let (target_has_card, target_name) = match ask_vector {
+    let (target_has_card, target_name, target_is_opponent) = match ask_vector {
         ToTeammate(_, target) => {
-            (has_card(teammate_hand(state, target), suit, value), teammate_name(target))
+            (has_card(teammate_hand(state, target), suit, value), teammate_name(target), false)
         }
         ToOpponent(_, target) => {
-            (has_card(opponent_hand(state, target), suit, value), opponent_name(target))
+            (has_card(opponent_hand(state, target), suit, value), opponent_name(target), true)
         }
     };
 
@@ -1050,7 +1050,7 @@ fn draw_ask_result(platform: &Platform,
         y: rect.y + rect.h - button_height,
         w: button_width,
         h: button_height,
-        text: if target_has_card {
+        text: if target_has_card == target_is_opponent {
             "Aha!".to_string()
         } else {
             "Oh...".to_string()
