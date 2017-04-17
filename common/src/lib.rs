@@ -5,6 +5,7 @@ use std::fmt;
 use rand::{StdRng, Rand, Rng};
 use std::cmp::Ordering;
 use std::cmp::Ordering::{Less, Equal, Greater};
+use std::collections::HashMap;
 
 pub struct Platform {
     pub print_xy: fn(i32, i32, &str),
@@ -32,6 +33,11 @@ pub struct State {
     pub opponent_1: Hand,
     pub opponent_2: Hand,
     pub opponent_3: Hand,
+    pub teammate_1_memory: Memory,
+    pub teammate_2_memory: Memory,
+    pub opponent_1_memory: Memory,
+    pub opponent_2_memory: Memory,
+    pub opponent_3_memory: Memory,
     pub menu_state: MenuState,
     pub declaration: Option<Declaration>,
     pub ui_context: UIContext,
@@ -140,11 +146,25 @@ impl From<SubSuit> for u8 {
     }
 }
 
+impl AllValues for SubSuit {
+    fn all_values() -> Vec<SubSuit> {
+        vec![LowClubs,
+             HighClubs,
+             LowDiamonds,
+             HighDiamonds,
+             LowHearts,
+             HighHearts,
+             LowSpades,
+             HighSpades]
+    }
+}
+
+
 pub trait AllValues {
     fn all_values() -> Vec<Self> where Self: std::marker::Sized;
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Player {
     OpponentPlayer(Opponent),
     TeammatePlayer(Teammate),
@@ -180,7 +200,7 @@ impl Rand for Player {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Opponent {
     OpponentZero,
     OpponentOne,
@@ -206,7 +226,7 @@ impl fmt::Display for Opponent {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Teammate {
     ThePlayer,
     TeammateOne,
@@ -378,7 +398,43 @@ impl PartialOrd for Value {
     }
 }
 
+#[derive(Copy, Clone, Debug,)]
+pub enum ModelCard {
+    Unknown,
+    Known(Suit, Value),
+}
+use ModelCard::*;
+#[derive(Copy, Clone, Debug,)]
+pub enum Fact {
+    KnownNotToHave(Suit, Value),
+}
 
+pub struct Knowledge {
+    pub model_hand: Vec<ModelCard>,
+    pub facts: Vec<Fact>,
+}
+
+impl Knowledge {
+    pub fn new() -> Self {
+        Knowledge {
+            model_hand: vec![Unknown, Unknown, Unknown, Unknown, Unknown, Unknown, Unknown, Unknown]
+,
+facts: Vec::new(),
+        }
+    }
+}
+
+pub type Memory = HashMap<Player, Knowledge>;
+
+pub fn new_memory() -> Memory {
+    let mut result = HashMap::new();
+
+    for &player in Player::all_values().iter() {
+        result.insert(player, Knowledge::new());
+    }
+
+    result
+}
 
 
 

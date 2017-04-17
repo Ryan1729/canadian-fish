@@ -11,9 +11,13 @@ use common::Teammate::*;
 use common::Player::*;
 use common::AskVector::*;
 use common::SubSuit::*;
+use common::Fact::*;
+use common::ModelCard::*;
 use common::AllValues;
 
 use rand::{StdRng, SeedableRng, Rng};
+
+use std::collections::HashMap;
 
 //NOTE(Ryan1729): debug_assertions only appears to work correctly when the
 //crate is not a dylib. Assuming you make this crate *not* a dylib on release,
@@ -77,6 +81,11 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_1: opponent_1,
         opponent_2: opponent_2,
         opponent_3: opponent_3,
+        teammate_1_memory: new_memory(),
+        teammate_2_memory: new_memory(),
+        opponent_1_memory: new_memory(),
+        opponent_2_memory: new_memory(),
+        opponent_3_memory: new_memory(),
         menu_state: Main,
         declaration: None,
         current_player: current_player,
@@ -240,7 +249,7 @@ pub fn game_update_and_render(platform: &Platform,
         }
     } else if let Some(current_player) = state.current_player {
 
-        if get_hand(state, current_player).len() == 0 {
+        if player_hand(state, current_player).len() == 0 {
             match current_player {
                 TeammatePlayer(ThePlayer) => {
                     draw_teammate_selection(platform,
@@ -268,11 +277,19 @@ pub fn game_update_and_render(platform: &Platform,
         } else {
             match state.menu_state {
                 Main => {
-                    draw_main_menu(platform,
-                                   state,
-                                   inner,
-                                   left_mouse_pressed,
-                                   left_mouse_released)
+                    match current_player {
+                        TeammatePlayer(ThePlayer) => {
+                            draw_main_menu(platform,
+                                           state,
+                                           inner,
+                                           left_mouse_pressed,
+                                           left_mouse_released)
+                        }
+                        _ => {
+                            let (ask_vector, suit, value) = get_ask_info(state, current_player);
+                            state.menu_state = AskStep4(ask_vector, suit, value);
+                        }
+                    }
                 }
                 AskStep1 => {
                     draw_ask_opponent_menu(platform,
@@ -406,6 +423,165 @@ pub fn game_update_and_render(platform: &Platform,
     false
 }
 
+fn get_opposite_team(player: Player) -> Vec<Player> {
+    match player {
+        TeammatePlayer(_) => Opponent::all_values().iter().map(|&o| OpponentPlayer(o)).collect(),
+        OpponentPlayer(_) => Teammate::all_values().iter().map(|&t| TeammatePlayer(t)).collect(),
+    }
+}
+
+fn get_ask_info(state: &mut State, player: Player) -> (AskVector, Suit, Value) {
+    let memory = match player {
+        TeammatePlayer(ThePlayer) => {
+            println!("Cannot return a reference to the player's memory");
+            return (ToOpponent(ThePlayer, OpponentZero), Spades, Ace);
+        }
+        TeammatePlayer(TeammateOne) => &state.teammate_1_memory,
+        TeammatePlayer(TeammateTwo) => &state.teammate_2_memory,
+        OpponentPlayer(OpponentZero) => &state.opponent_1_memory,
+        OpponentPlayer(OpponentOne) => &state.opponent_2_memory,
+        OpponentPlayer(OpponentTwo) => &state.opponent_3_memory,
+    };
+
+    let mut other_team: Vec<Player> = get_opposite_team(player);
+    other_team = other_team.iter()
+        .map(|&p| p)
+        .filter(|&p| player_hand(state, p).len() > 0)
+        .collect();
+
+
+    //what cards can I ask for?
+    let possible_pairs = get_possible_target_pairs(player_hand(state, player));
+
+    //of those, what do I know a particular opponent has
+    for pair in possible_pairs.iter() {
+        for &target_player in other_team.iter() {
+            if known_to_have(memory, target_player, *pair) {
+                return (make_ask_vector(player, target_player).unwrap_or(ToOpponent(ThePlayer,
+                                                                                    OpponentZero)),
+                        pair.0,
+                        pair.1);
+            }
+        }
+    }
+
+    //TODO don't ask an opponent a quesion if they would win a suit,
+    //i.e. you know that they know where all the cards of a suit are
+    //but some are in one of your teammates hands. Instead try to ask
+    //opponents that we know don't have any cards of that suit.
+
+    if let (Some(default_player), Some(default_pair)) = (other_team.get(0), possible_pairs.get(0)) {
+
+        let mut best_so_far = (*default_player, default_pair, -1);
+        //which opponent has the most unknown cards, and I don't already
+        //know doesn't have this card?
+        for pair in possible_pairs.iter() {
+            for &target_player in other_team.iter() {
+                if not_known_not_to_have(memory, target_player, *pair) {
+                    let unknown_pairs_count = get_unknown_pairs_count(memory, target_player);
+
+                    if unknown_pairs_count > best_so_far.2 {
+                        best_so_far = (target_player, pair, unknown_pairs_count)
+                    }
+                }
+            }
+        }
+
+        (make_ask_vector(player, best_so_far.0).unwrap_or(ToOpponent(ThePlayer, OpponentZero)),
+         (best_so_far.1).0,
+         (best_so_far.1).1)
+    } else {
+        println!("No valid target player and/or card.");
+        (ToOpponent(ThePlayer, OpponentZero), Hearts, Queen)
+    }
+
+}
+
+fn known_to_have(memory: &Memory, target_player: Player, pair: (Suit, Value)) -> bool {
+    if let Some(knowledge) = memory.get(&target_player) {
+        for &card in knowledge.model_hand.iter() {
+            match card {
+                Known(suit, value) => {
+                    if suit == pair.0 && value == pair.1 {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    };
+
+    false
+
+}
+
+fn not_known_not_to_have(memory: &Memory, target_player: Player, pair: (Suit, Value)) -> bool {
+    if let Some(knowledge) = memory.get(&target_player) {
+        for &fact in knowledge.facts.iter() {
+            match fact {
+                KnownNotToHave(suit, value) => {
+                    if suit == pair.0 && value == pair.1 {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+        }
+    };
+
+    true
+}
+
+fn get_unknown_pairs_count(memory: &Memory, target_player: Player) -> i32 {
+    let mut result = 0;
+
+    if let Some(knowledge) = memory.get(&target_player) {
+        for &card in knowledge.model_hand.iter() {
+            match card {
+                Unknown => {
+                    result += 1;
+                }
+                _ => {}
+            }
+        }
+    };
+
+    result
+}
+
+
+fn make_ask_vector(source: Player, target: Player) -> Option<AskVector> {
+    match (source, target) {
+        (TeammatePlayer(s), OpponentPlayer(t)) => Some(ToOpponent(s, t)),
+        (OpponentPlayer(s), TeammatePlayer(t)) => Some(ToTeammate(s, t)),
+        _ => None,
+    }
+}
+
+fn get_possible_target_pairs(hand: &Hand) -> Vec<(Suit, Value)> {
+    let mut result = Vec::new();
+    let subsuits = SubSuit::all_values();
+
+    for &subsuit in subsuits.iter() {
+        let pairs = pairs_from_subsuit(subsuit);
+
+        if has_subsuit(hand, subsuit) {
+            result.extend(pairs.iter().filter(|&&(suit, value)| {
+
+                for card in hand.iter() {
+                    if card.suit == suit && card.value == value {
+                        return false;
+                    }
+                }
+
+                true
+            }))
+        }
+    }
+
+    result
+}
+
 enum PlayerChoiceHeuristic {
     MostCards,
     FewestCards,
@@ -464,7 +640,7 @@ fn get_available_opponent(state: &State,
 
 }
 
-fn get_hand(state: &State, player: Player) -> &Hand {
+fn player_hand(state: &State, player: Player) -> &Hand {
     match player {
         TeammatePlayer(t) => teammate_hand(state, t),
         OpponentPlayer(o) => opponent_hand(state, o),
@@ -783,7 +959,6 @@ fn has_subsuit(hand: &Hand, subsuit: SubSuit) -> bool {
 
     for card in hand.iter() {
         for &(suit, value) in pairs.iter() {
-
             if card.suit == suit && card.value == value {
                 return true;
             }
