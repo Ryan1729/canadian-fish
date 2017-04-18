@@ -6,10 +6,6 @@ This is a single-player only version of a six person card game with rules as des
 ##TODO    
 -> other players take turns
   -> question
-    -> show results of each question
-      -> review show result function 
-      -> player isn't actually a special case!
-    -> update whose turn it is after each ask
     -> update each cpu player's memory after each ask
       -> consistency check? facts vs model hand
   -> declare

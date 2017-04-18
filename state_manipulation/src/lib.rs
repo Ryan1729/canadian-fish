@@ -1096,7 +1096,14 @@ fn draw_ask_result(platform: &Platform,
                 }
             }
 
+        } else {
+            state.current_player = Some(match ask_vector {
+                                            ToTeammate(_, target) => TeammatePlayer(target),
+                                            ToOpponent(_, target) => OpponentPlayer(target),
+                                        })
+
         }
+
         state.menu_state = Main;
     }
 

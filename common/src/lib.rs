@@ -375,7 +375,7 @@ impl Ord for Value {
 impl From<Value> for u8 {
     fn from(value: Value) -> Self {
         match value {
-            Ace => 1,
+            Ace => 14, //Ace high
             Two => 2,
             Three => 3,
             Four => 4,
@@ -417,9 +417,9 @@ pub struct Knowledge {
 impl Knowledge {
     pub fn new() -> Self {
         Knowledge {
-            model_hand: vec![Unknown, Unknown, Unknown, Unknown, Unknown, Unknown, Unknown, Unknown]
-,
-facts: Vec::new(),
+            model_hand: vec![Unknown, Unknown, Unknown, Unknown, Unknown, Unknown, Unknown,
+                             Unknown],
+            facts: Vec::new(),
         }
     }
 }
