@@ -4,9 +4,13 @@ This is a single-player only version of a six person card game with rules as des
 
 
 ##TODO    
+-> show hand counts on opponent buttons
+-> restrict declarations of already gone suits
 -> other players take turns    
   -> declare
-    -> update memories after declare
+    -> handle player running out of cards
+      -> skip button
+        -> ensure that games actually stop eventually
     -> handle player's team running out of cards
     -> handle opponent's team running out of cards
   -> stronger AI

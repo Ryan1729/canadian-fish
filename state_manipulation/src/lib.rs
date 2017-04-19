@@ -696,6 +696,11 @@ fn draw(platform: &Platform, state: &State) {
             break;
         }
     }
+
+    (platform.print_xy)(size.width - 9,
+                        size.height - 3,
+                        &format!("{}:{}", state.player_points, state.opponent_points));
+    (platform.print_xy)(size.width - 10, size.height - 2, "Us Them");
 }
 
 pub struct SpecRect {
@@ -1068,7 +1073,6 @@ fn draw_ask_result(platform: &Platform,
                  &spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-
         if target_has_card {
             let taken_card = {
                 let mut index = 0;
@@ -1560,46 +1564,102 @@ fn draw_declare_result(platform: &Platform,
                  left_mouse_pressed,
                  left_mouse_released) {
         let mut all_correct = true;
+        let mut removed_cards = Vec::new();
         for i in 0..6 {
             let (suit, value) = pairs[i];
 
+
             let card_not_found = {
-                let hand = match info {
-                    TeammateDInfo(_, _, teammates) => teammate_hand_mut(state, teammates[i]),
-                    OpponentDInfo(_, _, opponents) => opponent_hand_mut(state, opponents[i]),
+                let (hand, player) = match info {
+                    TeammateDInfo(_, _, teammates) => {
+                        (teammate_hand_mut(state, teammates[i]), TeammatePlayer(teammates[i]))
+                    }
+                    OpponentDInfo(_, _, opponents) => {
+                        (opponent_hand_mut(state, opponents[i]), OpponentPlayer(opponents[i]))
+                    }
                 };
 
-                remove_from_hand(hand, suit, value).is_none()
+                if let Some(card) = remove_from_hand(hand, suit, value) {
+                    removed_cards.push((card.suit, card.value, player));
+
+                    false
+                } else {
+                    true
+                }
             };
 
             if card_not_found {
-                //just in case
                 all_correct = false;
-                for hand in all_hands_mut(state).iter_mut() {
-                    if let Some(_) = remove_from_hand(hand, suit, value) {
+                for &mut (ref mut hand, player) in all_hands_mut(state).iter_mut() {
+                    if let Some(card) = remove_from_hand(hand, suit, value) {
+                        removed_cards.push((card.suit, card.value, player));
+
                         break;
                     }
                 }
             }
         }
 
-        if all_correct {
-            state.player_points += 1;
-        } else {
-            state.opponent_points += 1;
+        match (info, all_correct) {
+            (TeammateDInfo(_, _, _), true) |
+            (OpponentDInfo(_, _, _), false) => {
+                state.player_points += 1;
+            }
+            (TeammateDInfo(_, _, _), false) |
+            (OpponentDInfo(_, _, _), true) => {
+                state.opponent_points += 1;
+            }
         }
+
+        update_memories_after_suit_declared(state, removed_cards);
 
         state.declaration = None;
     }
 }
 
-fn all_hands_mut(state: &mut State) -> Vec<&mut Vec<Card>> {
-    vec![&mut state.player,
-         &mut state.teammate_1,
-         &mut state.teammate_2,
-         &mut state.opponent_1,
-         &mut state.opponent_2,
-         &mut state.opponent_3]
+fn update_memories_after_suit_declared(state: &mut State,
+                                       located_cards: Vec<(Suit, Value, Player)>) {
+    for memory in get_memories(state).iter_mut() {
+        'located_cards: for &(suit, value, player) in located_cards.iter() {
+            if let Some(knowledge) = memory.get_mut(&player) {
+                let hand = &mut knowledge.model_hand;
+
+                for i in 0..hand.len() {
+                    match hand[i] {
+                        Unknown => {}
+                        Known(known_suit, known_value) => {
+                            if known_suit == suit && known_value == value {
+                                hand.swap_remove(i);
+
+                                continue 'located_cards;
+                            }
+                        }
+                    }
+                }
+
+                for i in 0..hand.len() {
+                    match hand[i] {
+                        Unknown => {
+                            hand.swap_remove(i);
+
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+fn all_hands_mut(state: &mut State) -> Vec<(&mut Hand, Player)> {
+    vec![(&mut state.player, TeammatePlayer(ThePlayer)),
+         (&mut state.teammate_1, TeammatePlayer(TeammateOne)),
+         (&mut state.teammate_2, TeammatePlayer(TeammateTwo)),
+         (&mut state.opponent_1, OpponentPlayer(OpponentZero)),
+         (&mut state.opponent_2, OpponentPlayer(OpponentOne)),
+         (&mut state.opponent_3, OpponentPlayer(OpponentTwo))]
 }
 
 fn remove_from_hand(hand: &mut Hand, suit: Suit, value: Value) -> Option<Card> {
