@@ -1087,26 +1087,126 @@ fn draw_ask_result(platform: &Platform,
             };
 
             if let Some(card) = taken_card {
-                let asker_hand = match ask_vector {
-                    ToTeammate(source, _) => opponent_hand_mut(state, source),
-                    ToOpponent(source, _) => teammate_hand_mut(state, source),
-                };
-                if let Err(insertion_index) = asker_hand.binary_search(&card) {
-                    asker_hand.insert(insertion_index, card);
+                {
+                    let asker_hand = match ask_vector {
+                        ToTeammate(source, _) => opponent_hand_mut(state, source),
+                        ToOpponent(source, _) => teammate_hand_mut(state, source),
+                    };
+                    if let Err(insertion_index) = asker_hand.binary_search(&card) {
+                        asker_hand.insert(insertion_index, card);
+                    }
                 }
+
+                note_successful_ask(state, ask_vector, suit, value);
             }
 
         } else {
             state.current_player = Some(match ask_vector {
                                             ToTeammate(_, target) => TeammatePlayer(target),
                                             ToOpponent(_, target) => OpponentPlayer(target),
-                                        })
+                                        });
 
+            note_unsuccessful_ask(state, ask_vector, suit, value);
         }
 
         state.menu_state = Main;
     }
 
+}
+
+//everyone now knows that `source` has this card and the target has one fewer
+fn note_successful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, value: Value) {
+    let (source, target) = match ask_vector {
+        ToTeammate(source, target) => (OpponentPlayer(source), TeammatePlayer(target)),
+        ToOpponent(source, target) => (TeammatePlayer(source), OpponentPlayer(target)),
+    };
+
+    for memory in get_memories(state).iter_mut() {
+        if let Some(target_knowledge) = memory.get_mut(&target) {
+            let target_hand = &mut target_knowledge.model_hand;
+
+            let mut card_was_not_found = true;
+
+            for i in 0..target_hand.len() {
+                if let Some(&Known(known_suit, known_value)) = target_hand.get(i) {
+                    if known_suit == suit && known_value == value {
+                        target_hand.swap_remove(i);
+
+                        card_was_not_found = false;
+                    }
+                }
+            }
+
+            if card_was_not_found {
+                for i in 0..target_hand.len() {
+                    if let Some(&Unknown) = target_hand.get(i) {
+                        target_hand.swap_remove(i);
+                    }
+                }
+            }
+        }
+        if let Some(source_knowledge) = memory.get_mut(&source) {
+            let ref mut source_hand = source_knowledge.model_hand;
+
+            source_hand.push(Known(suit, value));
+        }
+    }
+}
+
+//everyone now knows that neither `source` or `target` have this card
+fn note_unsuccessful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, value: Value) {
+    let (source, target) = match ask_vector {
+        ToTeammate(source, target) => (OpponentPlayer(source), TeammatePlayer(target)),
+        ToOpponent(source, target) => (TeammatePlayer(source), OpponentPlayer(target)),
+    };
+
+    //TODO infer who has cards by process of elimination
+
+    for memory in get_memories(state).iter_mut() {
+        if let Some(knowledge) = memory.get_mut(&target) {
+            note_does_not_have(knowledge, suit, value);
+        }
+        if let Some(knowledge) = memory.get_mut(&source) {
+            note_does_not_have(knowledge, suit, value);
+        }
+    }
+
+}
+
+fn note_does_not_have(knowledge: &mut Knowledge, suit: Suit, value: Value) {
+    let ref mut facts = knowledge.facts;
+
+    //no need to add duplicate facts
+    let mut not_already_known = true;
+    for i in 0..facts.len() {
+        if let Some(&KnownNotToHave(known_suit, known_value)) = facts.get(i) {
+            if known_suit == suit && known_value == value {
+                not_already_known = false;
+                break;
+            }
+        }
+    }
+    if not_already_known {
+        facts.push(KnownNotToHave(suit, value));
+    }
+
+    //we'll assume that the newest information is correct
+    let ref mut hand = knowledge.model_hand;
+    for i in 0..hand.len() {
+        if let Some(&Known(known_suit, known_value)) = hand.get(i) {
+            if known_suit == suit && known_value == value {
+                hand[i] = Unknown;
+            }
+        }
+    }
+}
+
+fn get_memories(state: &mut State) -> Vec<&mut Memory> {
+    vec![&mut state.teammate_1_memory,
+         &mut state.teammate_2_memory,
+         &mut state.opponent_1_memory,
+         &mut state.opponent_2_memory,
+         &mut state.opponent_3_memory]
 }
 
 fn teammate_name(teammate: Teammate) -> String {

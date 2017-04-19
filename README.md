@@ -4,15 +4,18 @@ This is a single-player only version of a six person card game with rules as des
 
 
 ##TODO    
--> other players take turns
-  -> question
-    -> update each cpu player's memory after each ask
-      -> consistency check? facts vs model hand
+-> other players take turns    
   -> declare
   -> deciding when to declare
     -> when they know for sure
     -> handle player's team running out of cards
     -> handle opponent's team running out of cards
+  -> stronger AI
+    -> process of elimination inference
+    -> prefer players who are known to have asked for a particular suit
+        (partial knowledge of cards?)
+    -> guess that if a player does not snatch back something that was taken then they are out of that suit?
+-> player hand sorting    
 -> polish?
     -> breadcrumbs in ask menus?
     -> manual hand sort?
