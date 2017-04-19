@@ -6,8 +6,7 @@ This is a single-player only version of a six person card game with rules as des
 ##TODO    
 -> other players take turns    
   -> declare
-  -> deciding when to declare
-    -> when they know for sure
+    -> update memories after declare
     -> handle player's team running out of cards
     -> handle opponent's team running out of cards
   -> stronger AI

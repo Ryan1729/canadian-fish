@@ -6,6 +6,7 @@ use common::Suit::*;
 use common::Value::*;
 use common::MenuState::*;
 use common::Declaration::*;
+use common::DeclarationInfo::*;
 use common::Opponent::*;
 use common::Teammate::*;
 use common::Player::*;
@@ -69,6 +70,12 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
 
     player.sort();
 
+    let teammate_1_memory = new_memory(TeammatePlayer(TeammateOne), &teammate_1);
+    let teammate_2_memory = new_memory(TeammatePlayer(TeammateTwo), &teammate_2);
+    let opponent_1_memory = new_memory(OpponentPlayer(OpponentZero), &opponent_1);
+    let opponent_2_memory = new_memory(OpponentPlayer(OpponentOne), &opponent_2);
+    let opponent_3_memory = new_memory(OpponentPlayer(OpponentTwo), &opponent_3);
+
     //TODO let player decide at game start how first player will be determined
     let current_player = Some(rng.gen::<Player>());
 
@@ -81,11 +88,11 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
         opponent_1: opponent_1,
         opponent_2: opponent_2,
         opponent_3: opponent_3,
-        teammate_1_memory: new_memory(),
-        teammate_2_memory: new_memory(),
-        opponent_1_memory: new_memory(),
-        opponent_2_memory: new_memory(),
-        opponent_3_memory: new_memory(),
+        teammate_1_memory: teammate_1_memory,
+        teammate_2_memory: teammate_2_memory,
+        opponent_1_memory: opponent_1_memory,
+        opponent_2_memory: opponent_2_memory,
+        opponent_3_memory: opponent_3_memory,
         menu_state: Main,
         declaration: None,
         current_player: current_player,
@@ -235,15 +242,13 @@ pub fn game_update_and_render(platform: &Platform,
                                            subsuit,
                                            teammates)
             }
-            DeclareStep3(player, subsuit, teammates) => {
+            DeclareStep3(info) => {
                 draw_declare_result(platform,
                                     state,
                                     inner,
                                     left_mouse_pressed,
                                     left_mouse_released,
-                                    subsuit,
-                                    teammates,
-                                    player)
+                                    info)
             }
 
         }
@@ -395,7 +400,7 @@ pub fn game_update_and_render(platform: &Platform,
     }
 
     let show_declare_button = match state.declaration {
-        Some(DeclareStep3(_, _, _)) => false,
+        Some(DeclareStep3(_)) => false,
         _ => teammate_hand(state, ThePlayer).len() > 0,
     };
 
@@ -1151,6 +1156,8 @@ fn note_successful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, val
             source_hand.push(Known(suit, value));
         }
     }
+
+    set_any_declarations(state);
 }
 
 //everyone now knows that neither `source` or `target` have this card
@@ -1171,6 +1178,120 @@ fn note_unsuccessful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, v
         }
     }
 
+    set_any_declarations(state);
+}
+
+fn set_any_declarations(state: &mut State) {
+    let mut cpu_players = cpu_players();
+
+    state.rng.shuffle(&mut cpu_players);
+
+    for &player in cpu_players.iter() {
+        let new_declaration = get_new_delcaration(state, player);
+
+        if new_declaration.is_some() {
+            state.declaration = new_declaration;
+            return;
+        }
+    }
+}
+
+fn get_new_delcaration(state: &mut State, player: Player) -> Option<Declaration> {
+    if let Some(memory) = get_memory(state, player) {
+        let same_team_players = get_same_team_players(player);
+
+        'subsuits: for &subsuit in SubSuit::all_values().iter() {
+            let mut known_owners = Vec::new();
+
+            for (suit, value) in pairs_from_subsuit(subsuit) {
+                match (player, known_owning_player(memory, &same_team_players, suit, value)) {
+                    (TeammatePlayer(_), Some(TeammatePlayer(owner))) => {
+                        known_owners.push(TeammatePlayer(owner))
+                    }
+                    (OpponentPlayer(_), Some(OpponentPlayer(owner))) => {
+                        known_owners.push(OpponentPlayer(owner))
+                    }
+                    _ => {
+                        continue 'subsuits;
+                    }
+                }
+            }
+
+            match player {
+                TeammatePlayer(t) => {
+                    if let Some(teammates) = get_teammate_declaration_array(known_owners) {
+                        return Some(DeclareStep3(TeammateDInfo(t, subsuit, teammates)));
+                    }
+                }
+                OpponentPlayer(o) => {
+                    if let Some(opponents) = get_opponent_declaration_array(known_owners) {
+                        return Some(DeclareStep3(OpponentDInfo(o, subsuit, opponents)));
+                    }
+                }
+            }
+        }
+    }
+    None
+
+}
+
+fn get_teammate_declaration_array(known_owners: Vec<Player>) -> Option<[Teammate; 6]> {
+    match (known_owners.get(0),
+           known_owners.get(1),
+           known_owners.get(2),
+           known_owners.get(3),
+           known_owners.get(4),
+           known_owners.get(5)) {
+        (Some(&TeammatePlayer(a)),
+         Some(&TeammatePlayer(b)),
+         Some(&TeammatePlayer(c)),
+         Some(&TeammatePlayer(d)),
+         Some(&TeammatePlayer(e)),
+         Some(&TeammatePlayer(f))) => Some([a, b, c, d, e, f]),
+        _ => None,
+    }
+
+}
+
+fn get_opponent_declaration_array(known_owners: Vec<Player>) -> Option<[Opponent; 6]> {
+    match (known_owners.get(0),
+           known_owners.get(1),
+           known_owners.get(2),
+           known_owners.get(3),
+           known_owners.get(4),
+           known_owners.get(5)) {
+        (Some(&OpponentPlayer(a)),
+         Some(&OpponentPlayer(b)),
+         Some(&OpponentPlayer(c)),
+         Some(&OpponentPlayer(d)),
+         Some(&OpponentPlayer(e)),
+         Some(&OpponentPlayer(f))) => Some([a, b, c, d, e, f]),
+        _ => None,
+    }
+
+}
+
+fn known_owning_player(memory: &Memory,
+                       players: &Vec<Player>,
+                       suit: Suit,
+                       value: Value)
+                       -> Option<Player> {
+    for &player in players.iter() {
+        if let Some(knowledge) = memory.get(&player) {
+            for &card in knowledge.model_hand.iter() {
+                match card {
+                    Unknown => {}
+                    Known(s, v) => {
+                        if s == suit && v == value {
+                            return Some(player);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn note_does_not_have(knowledge: &mut Knowledge, suit: Suit, value: Value) {
@@ -1207,6 +1328,32 @@ fn get_memories(state: &mut State) -> Vec<&mut Memory> {
          &mut state.opponent_1_memory,
          &mut state.opponent_2_memory,
          &mut state.opponent_3_memory]
+}
+
+fn get_memory(state: &mut State, player: Player) -> Option<&mut Memory> {
+    match player {
+        TeammatePlayer(ThePlayer) => None,
+        TeammatePlayer(TeammateOne) => Some(&mut state.teammate_1_memory),
+        TeammatePlayer(TeammateTwo) => Some(&mut state.teammate_2_memory),
+        OpponentPlayer(OpponentZero) => Some(&mut state.opponent_1_memory),
+        OpponentPlayer(OpponentOne) => Some(&mut state.opponent_2_memory),
+        OpponentPlayer(OpponentTwo) => Some(&mut state.opponent_3_memory),
+    }
+}
+
+fn get_same_team_players(player: Player) -> Vec<Player> {
+    match player {
+        TeammatePlayer(_) => {
+            vec![TeammatePlayer(ThePlayer),
+                 TeammatePlayer(TeammateOne),
+                 TeammatePlayer(TeammateTwo)]
+        }
+        OpponentPlayer(_) => {
+            vec![OpponentPlayer(OpponentZero),
+                 OpponentPlayer(OpponentOne),
+                 OpponentPlayer(OpponentTwo)]
+        }
+    }
 }
 
 fn teammate_name(teammate: Teammate) -> String {
@@ -1318,7 +1465,7 @@ fn draw_declare_radio_buttons(platform: &Platform,
                  &spec,
                  left_mouse_pressed,
                  left_mouse_released) {
-        state.declaration = Some(DeclareStep3(TeammatePlayer(ThePlayer), subsuit, teammates));
+        state.declaration = Some(DeclareStep3(TeammateDInfo(ThePlayer, subsuit, teammates)));
     }
 }
 
@@ -1327,41 +1474,73 @@ fn draw_declare_result(platform: &Platform,
                        rect: SpecRect,
                        left_mouse_pressed: bool,
                        left_mouse_released: bool,
-                       subsuit: SubSuit,
-                       teammates: [Teammate; 6],
-                       player: Player) {
-    let pairs = pairs_from_subsuit(subsuit);
+                       info: DeclarationInfo) {
     let row_width = (rect.w / 6) - (MENU_OFFSET as f64 / 6.0).round() as i32;
+    let subsuit = match info {
+        TeammateDInfo(_, subsuit, _) => subsuit,
+        OpponentDInfo(_, subsuit, _) => subsuit,
+    };
 
-    for i in 0..teammates.len() {
+    let pairs = pairs_from_subsuit(subsuit);
+    for i in 0..6 {
         let (suit, value) = pairs[i];
-
-        let teammate = teammates[i];
 
         let y = rect.y + (i as i32 * row_width) / 6;
 
-        print_horizontally_centered_line(platform,
-                                         &rect,
-                                         &format!("You said that {} had the {} of {}",
-                                                  teammate,
-                                                  value,
-                                                  suit),
-                                         y);
+        match info {
+            TeammateDInfo(declarer, _, teammates) => {
+                let teammate = teammates[i];
 
-        let result_str = if has_card(teammate_hand(state, teammate), suit, value) {
-            match teammate {
-                ThePlayer => "And you did have it.",
-                _ => "And they did have it!",
-            }
-        } else {
-            match teammate {
-                ThePlayer => "But you didn't have it?! Nice move, genius.",
-                //TODO say who did have it here
-                _ => "But they didn't have it!",
-            }
-        };
+                print_horizontally_centered_line(platform,
+                                                 &rect,
+                                                 &format!("{} said that {} had the {} of {}",
+                                                          declarer.to_string(),
+                                                          teammate,
+                                                          value,
+                                                          suit),
+                                                 y);
 
-        print_horizontally_centered_line(platform, &rect, result_str, y + 1);
+                let result_str = if has_card(teammate_hand(state, teammate), suit, value) {
+                    match teammate {
+                        ThePlayer => "And you did have it.",
+                        _ => "And they did have it!",
+                    }
+                } else {
+                    match teammate {
+                        ThePlayer => "But you didn't have it?! Nice move, genius.",
+                        //TODO say who did have it here
+                        _ => "But they didn't have it!",
+                    }
+                };
+
+                print_horizontally_centered_line(platform, &rect, result_str, y + 1);
+            }
+            OpponentDInfo(declarer, _, opponents) => {
+                let opponent = opponents[i];
+
+                print_horizontally_centered_line(platform,
+                                                 &rect,
+                                                 &format!("{} said that {} had the {} of {}",
+                                                          declarer.to_string(),
+                                                          opponent,
+                                                          value,
+                                                          suit),
+                                                 y);
+
+                let result_str = if has_card(opponent_hand(state, opponent), suit, value) {
+
+                    "And they did have it!"
+
+                } else {
+                    //TODO say who did have it here
+                    "But they didn't have it!"
+                };
+
+                print_horizontally_centered_line(platform, &rect, result_str, y + 1);
+            }
+        }
+
+
     }
 
     let button_width = (rect.w / 3) - (MENU_OFFSET as f64 / 3.0).round() as i32;
@@ -1381,14 +1560,20 @@ fn draw_declare_result(platform: &Platform,
                  left_mouse_pressed,
                  left_mouse_released) {
         let mut all_correct = true;
-        for i in 0..teammates.len() {
+        for i in 0..6 {
             let (suit, value) = pairs[i];
 
-            let teammate = teammates[i];
+            let card_not_found = {
+                let hand = match info {
+                    TeammateDInfo(_, _, teammates) => teammate_hand_mut(state, teammates[i]),
+                    OpponentDInfo(_, _, opponents) => opponent_hand_mut(state, opponents[i]),
+                };
 
-            if let Some(_) = remove_from_hand(teammate_hand_mut(state, teammate), suit, value) {
-                //card was where it was expected to be
-            } else {
+                remove_from_hand(hand, suit, value).is_none()
+            };
+
+            if card_not_found {
+                //just in case
                 all_correct = false;
                 for hand in all_hands_mut(state).iter_mut() {
                     if let Some(_) = remove_from_hand(hand, suit, value) {

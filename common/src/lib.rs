@@ -97,7 +97,13 @@ pub enum AskVector {
 pub enum Declaration {
     DeclareStep1,
     DeclareStep2(SubSuit, [Teammate; 6]),
-    DeclareStep3(Player, SubSuit, [Teammate; 6]),
+    DeclareStep3(DeclarationInfo),
+}
+
+#[derive(Copy, Clone)]
+pub enum DeclarationInfo {
+    TeammateDInfo(Teammate, SubSuit, [Teammate; 6]),
+    OpponentDInfo(Opponent, SubSuit, [Opponent; 6]),
 }
 
 #[derive(Copy, Clone)]
@@ -198,6 +204,14 @@ impl Rand for Player {
 
         *rng.choose(players.as_slice()).unwrap_or(&TeammatePlayer(ThePlayer))
     }
+}
+
+pub fn cpu_players() -> Vec<Player> {
+    vec![TeammatePlayer(TeammateOne),
+         TeammatePlayer(TeammateTwo),
+         OpponentPlayer(OpponentZero),
+         OpponentPlayer(OpponentOne),
+         OpponentPlayer(OpponentTwo)]
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -426,11 +440,20 @@ impl Knowledge {
 
 pub type Memory = HashMap<Player, Knowledge>;
 
-pub fn new_memory() -> Memory {
+pub fn new_memory(player: Player, hand: &Hand) -> Memory {
     let mut result = HashMap::new();
 
-    for &player in Player::all_values().iter() {
-        result.insert(player, Knowledge::new());
+    for &current_player in Player::all_values().iter() {
+        if current_player == player {
+            let mut self_knowledge = Knowledge::new();
+
+            self_knowledge.model_hand =
+                hand.iter().map(|card| Known(card.suit.clone(), card.value.clone())).collect();
+
+            result.insert(current_player, self_knowledge);
+        } else {
+            result.insert(current_player, Knowledge::new());
+        }
     }
 
     result
