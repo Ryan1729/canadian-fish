@@ -4,8 +4,6 @@ This is a single-player only version of a six person card game with rules as des
 
 
 ##TODO    
--> show hand counts on opponent buttons
--> restrict declarations of already gone suits
 -> other players take turns    
   -> declare
     -> handle player running out of cards
@@ -18,7 +16,6 @@ This is a single-player only version of a six person card game with rules as des
     -> prefer players who are known to have asked for a particular suit
         (partial knowledge of cards?)
     -> guess that if a player does not snatch back something that was taken then they are out of that suit?
--> player hand sorting    
 -> polish?
     -> breadcrumbs in ask menus?
     -> manual hand sort?

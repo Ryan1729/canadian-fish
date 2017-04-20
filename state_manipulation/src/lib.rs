@@ -783,6 +783,11 @@ fn draw_ask_opponent_menu(platform: &Platform,
         state.menu_state = AskStep2(OpponentZero);
     }
 
+    print_horizontally_centered_line(platform,
+                                     &opponent_zero,
+                                     &format!("{} cards", state.opponent_1.len()),
+                                     opponent_zero.y + (opponent_zero.h / 2) + 1);
+
     let opponent_one = ButtonSpec {
         x: rect.x + button_width + MENU_OFFSET,
         y: rect.y,
@@ -800,6 +805,11 @@ fn draw_ask_opponent_menu(platform: &Platform,
         state.menu_state = AskStep2(OpponentOne);
     }
 
+    print_horizontally_centered_line(platform,
+                                     &opponent_one,
+                                     &format!("{} cards", state.opponent_2.len()),
+                                     opponent_one.y + (opponent_one.h / 2) + 1);
+
     let opponent_two = ButtonSpec {
         x: rect.x + (button_width + MENU_OFFSET) * 2,
         y: rect.y,
@@ -816,6 +826,11 @@ fn draw_ask_opponent_menu(platform: &Platform,
                  left_mouse_released) {
         state.menu_state = AskStep2(OpponentTwo);
     }
+
+    print_horizontally_centered_line(platform,
+                                     &opponent_two,
+                                     &format!("{} cards", state.opponent_3.len()),
+                                     opponent_two.y + (opponent_two.h / 2) + 1);
 }
 
 
@@ -1614,6 +1629,8 @@ fn draw_declare_result(platform: &Platform,
         update_memories_after_suit_declared(state, removed_cards);
 
         state.declaration = None;
+        state.suits_in_play_bits &= !u8::from(subsuit);
+
     }
 }
 
