@@ -2,6 +2,9 @@
 
 This is a single-player only version of a six person card game with rules as described on [this page](http://bantha.org/~develin/cardgames.html#ch9).
 
+![demo gif](/demo.gif?raw=true "Demo")
+
+This is currently playable/winnable but tere are several potential improvements
 
 ##TODO    
 -> other players take turns    
