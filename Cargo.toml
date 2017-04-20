@@ -1,6 +1,6 @@
 [package]
-name = "live-code-template"
-version = "0.1.0"
+name = "canadian-fish"
+version = "1.0.0"
 authors = ["Ryan1729 <Ryan1729@gmail.com>"]
 
 [workspace]
