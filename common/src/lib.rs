@@ -454,7 +454,7 @@ impl PartialOrd for Value {
     }
 }
 
-#[derive(Copy, Clone, Debug,)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModelCard {
     Unknown,
     Known(Suit, Value),

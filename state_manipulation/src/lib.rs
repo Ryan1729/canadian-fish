@@ -327,8 +327,14 @@ pub fn game_update_and_render(platform: &Platform,
                                            left_mouse_released)
                         }
                         _ => {
-                            let (ask_vector, suit, value) = get_ask_info(state, current_player);
-                            state.menu_state = AskStep4(ask_vector, suit, value);
+                            if let Some((ask_vector, suit, value)) =
+                                get_ask_info(state, current_player) {
+                                state.menu_state = AskStep4(ask_vector, suit, value);
+                            } else {
+                                state.menu_state = Main;
+                                //TODO give player chance to declare first
+                                state.declaration = Some(guess_declaration(state));
+                            }
                         }
                     }
                 }
@@ -464,6 +470,74 @@ pub fn game_update_and_render(platform: &Platform,
     false
 }
 
+fn guess_declaration(state: &mut State) -> Declaration {
+
+    let mut declarations = Vec::new();
+
+    let available_subsuits: Vec<SubSuit> =
+        SubSuit::all_values().into_iter().filter(|&s| subsuit_is_in_play(state, s)).collect();
+    for &(hand, player) in cpu_hands(state).iter() {
+        for &subsuit in available_subsuits.iter() {
+            let mut guessed_owners = Vec::new();
+            let pairs = pairs_from_subsuit(subsuit);
+            'pairs: for (suit, value) in pairs {
+                if hand.contains(&Card {
+                                      suit: suit,
+                                      value: value,
+                                  }) {
+                    guessed_owners.push(player);
+                    continue;
+                }
+                for current_player in Player::all_values() {
+                    if let Some(knowledge) =
+                        get_memory(state, player).and_then(|m| m.get(&current_player)) {
+                        if knowledge.model_hand.contains(&Known(suit, value)) {
+                            guessed_owners.push(player);
+                            continue 'pairs;
+                        }
+                    }
+                }
+
+                //TODO better guessing
+                let guess = *guessed_owners.get(guessed_owners.len() - 1).unwrap_or(&player);
+                guessed_owners.push(guess);
+            }
+
+            let possible_info = match player {
+                TeammatePlayer(t) => {
+                    if let Some(teammates) = get_teammate_declaration_array(guessed_owners) {
+                        Some(DeclareStep3(TeammateDInfo(t, subsuit, teammates)))
+                    } else {
+                        None
+                    }
+                }
+                OpponentPlayer(o) => {
+                    if let Some(opponents) = get_opponent_declaration_array(guessed_owners) {
+                        Some(DeclareStep3(OpponentDInfo(o, subsuit, opponents)))
+                    } else {
+                        None
+                    }
+                }
+            };
+
+            if let Some(actual_info) = possible_info {
+                declarations.push(actual_info);
+            }
+        }
+    }
+
+    let len = declarations.len();
+    if len > 0 {
+        if let Some(&declaration) = declarations.get(state.rng.gen_range(0, len)) {
+            declaration
+        } else {
+            DeclareStep3(OpponentDInfo(OpponentZero, LowClubs, [OpponentZero; 6]))
+        }
+    } else {
+        DeclareStep3(OpponentDInfo(OpponentZero, HighSpades, [OpponentZero; 6]))
+    }
+}
+
 fn show_quit_screen(platform: &Platform,
                     state: &mut State,
                     left_mouse_pressed: bool,
@@ -497,11 +571,11 @@ fn get_opposite_team(player: Player) -> Vec<Player> {
     }
 }
 
-fn get_ask_info(state: &mut State, player: Player) -> (AskVector, Suit, Value) {
+fn get_ask_info(state: &mut State, player: Player) -> Option<(AskVector, Suit, Value)> {
     let memory = match player {
         TeammatePlayer(ThePlayer) => {
             println!("Cannot return a reference to the player's memory");
-            return (ToOpponent(ThePlayer, OpponentZero), Spades, Ace);
+            return Some((ToOpponent(ThePlayer, OpponentZero), Spades, Ace));
         }
         TeammatePlayer(TeammateOne) => &state.teammate_1_memory,
         TeammatePlayer(TeammateTwo) => &state.teammate_2_memory,
@@ -524,10 +598,11 @@ fn get_ask_info(state: &mut State, player: Player) -> (AskVector, Suit, Value) {
     for pair in possible_pairs.iter() {
         for &target_player in other_team.iter() {
             if known_to_have(memory, target_player, *pair) {
-                return (make_ask_vector(player, target_player).unwrap_or(ToOpponent(ThePlayer,
-                                                                                    OpponentZero)),
-                        pair.0,
-                        pair.1);
+                return if let Some(vector) = make_ask_vector(player, target_player) {
+                           Some((vector, pair.0, pair.1))
+                       } else {
+                           None
+                       };
             }
         }
     }
@@ -554,12 +629,12 @@ fn get_ask_info(state: &mut State, player: Player) -> (AskVector, Suit, Value) {
             }
         }
 
-        (make_ask_vector(player, best_so_far.0).unwrap_or(ToOpponent(ThePlayer, OpponentZero)),
-         (best_so_far.1).0,
-         (best_so_far.1).1)
+        Some((make_ask_vector(player, best_so_far.0).unwrap_or(ToOpponent(ThePlayer,
+                                                                          OpponentZero)),
+              (best_so_far.1).0,
+              (best_so_far.1).1))
     } else {
-        println!("No valid target player and/or card.");
-        (ToOpponent(ThePlayer, OpponentZero), Hearts, Queen)
+        None
     }
 
 }
@@ -1341,7 +1416,7 @@ fn set_any_declarations(state: &mut State) {
 }
 
 fn get_new_delcaration(state: &mut State, player: Player) -> Option<Declaration> {
-    if let Some(memory) = get_memory(state, player) {
+    if let Some(memory) = get_memory_mut(state, player) {
         let same_team_players = get_same_team_players(player);
 
         'subsuits: for &subsuit in SubSuit::all_values().iter() {
@@ -1474,7 +1549,7 @@ fn get_memories(state: &mut State) -> Vec<&mut Memory> {
          &mut state.opponent_3_memory]
 }
 
-fn get_memory(state: &mut State, player: Player) -> Option<&mut Memory> {
+fn get_memory_mut(state: &mut State, player: Player) -> Option<&mut Memory> {
     match player {
         TeammatePlayer(ThePlayer) => None,
         TeammatePlayer(TeammateOne) => Some(&mut state.teammate_1_memory),
@@ -1482,6 +1557,17 @@ fn get_memory(state: &mut State, player: Player) -> Option<&mut Memory> {
         OpponentPlayer(OpponentZero) => Some(&mut state.opponent_1_memory),
         OpponentPlayer(OpponentOne) => Some(&mut state.opponent_2_memory),
         OpponentPlayer(OpponentTwo) => Some(&mut state.opponent_3_memory),
+    }
+}
+
+fn get_memory(state: &State, player: Player) -> Option<&Memory> {
+    match player {
+        TeammatePlayer(ThePlayer) => None,
+        TeammatePlayer(TeammateOne) => Some(&state.teammate_1_memory),
+        TeammatePlayer(TeammateTwo) => Some(&state.teammate_2_memory),
+        OpponentPlayer(OpponentZero) => Some(&state.opponent_1_memory),
+        OpponentPlayer(OpponentOne) => Some(&state.opponent_2_memory),
+        OpponentPlayer(OpponentTwo) => Some(&state.opponent_3_memory),
     }
 }
 
@@ -1802,6 +1888,14 @@ fn all_hands_mut(state: &mut State) -> Vec<(&mut Hand, Player)> {
          (&mut state.opponent_1, OpponentPlayer(OpponentZero)),
          (&mut state.opponent_2, OpponentPlayer(OpponentOne)),
          (&mut state.opponent_3, OpponentPlayer(OpponentTwo))]
+}
+
+fn cpu_hands(state: &State) -> Vec<(&Hand, Player)> {
+    vec![(&state.teammate_1, TeammatePlayer(TeammateOne)),
+         (&state.teammate_2, TeammatePlayer(TeammateTwo)),
+         (&state.opponent_1, OpponentPlayer(OpponentZero)),
+         (&state.opponent_2, OpponentPlayer(OpponentOne)),
+         (&state.opponent_3, OpponentPlayer(OpponentTwo))]
 }
 
 fn remove_from_hand(hand: &mut Hand, suit: Suit, value: Value) -> Option<Card> {
