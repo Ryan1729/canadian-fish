@@ -109,29 +109,7 @@ fn make_state(size: Size, title_screen: bool, mut rng: StdRng) -> State {
 }
 
 fn shuffled_deck(rng: &mut StdRng) -> Deck {
-    let mut deck = Vec::new();
-
-    for &suit in vec![Clubs, Diamonds, Hearts, Spades].iter() {
-        for &value in vec![Ace,
-                           Two,
-                           Three,
-                           Four,
-                           Five,
-                           Six,
-                           Seven,
-                           //Eight, //Canadian Fish doesn't use the Eights
-                           Nine,
-                           Ten,
-                           Jack,
-                           Queen,
-                           King]
-                    .iter() {
-            deck.push(Card {
-                          suit: suit,
-                          value: value,
-                      });
-        }
-    }
+    let mut deck = Card::all_values();
 
     rng.shuffle(&mut deck);
 
@@ -150,24 +128,24 @@ pub fn hand_height(height: i32) -> i32 {
 #[no_mangle]
 //returns true if quit requested
 pub fn update_and_render(platform: &Platform, state: &mut State, events: &mut Vec<Event>) -> bool {
-    if state.title_screen {
-
-        for event in events {
-            cross_mode_event_handling(platform, state, event);
-            match *event {
-                Event::Close |
-                Event::KeyPressed { key: KeyCode::Escape, ctrl: _, shift: _ } => return true,
-                Event::KeyPressed { key: _, ctrl: _, shift: _ } => state.title_screen = false,
-                _ => (),
-            }
-        }
-
-        draw(platform, state);
-
-        false
-    } else {
-        game_update_and_render(platform, state, events)
-    }
+    // if state.title_screen {
+    //
+    //     for event in events {
+    //         cross_mode_event_handling(platform, state, event);
+    //         match *event {
+    //             Event::Close |
+    //             Event::KeyPressed { key: KeyCode::Escape, ctrl: _, shift: _ } => return true,
+    //             Event::KeyPressed { key: _, ctrl: _, shift: _ } => state.title_screen = false,
+    //             _ => (),
+    //         }
+    //     }
+    //
+    //     draw(platform, state);
+    //
+    //     false
+    // } else {
+    game_update_and_render(platform, state, events)
+    // }
 }
 
 pub fn game_update_and_render(platform: &Platform,
@@ -190,8 +168,8 @@ pub fn game_update_and_render(platform: &Platform,
             Event::Close |
             Event::KeyReleased { key: KeyCode::Escape, ctrl: _, shift: _ } => {
                 match state.menu_state {
-                    Main => return true,
-                    _ => state.menu_state = Main,
+                    Quit => return true,
+                    _ => state.menu_state = Quit,
                 }
             }
 
@@ -219,7 +197,57 @@ pub fn game_update_and_render(platform: &Platform,
 
     state.ui_context.frame_init();
 
-    if let Some(declaration) = state.declaration {
+    let on_quit_screen = match state.menu_state {
+        Quit => true,
+        _ => false,
+    };
+
+    if on_quit_screen {
+        show_quit_screen(platform,
+                         state,
+                         left_mouse_pressed,
+                         left_mouse_released,
+                         &inner);
+    } else if state.suits_in_play_bits == 0 {
+        let mid_y = inner.y + (inner.h / 2);
+        print_horizontally_centered_line(platform,
+                                         &inner,
+                                         if state.player_points > state.opponent_points {
+                                             "Your team won"
+                                         } else if state.player_points < state.opponent_points {
+            "The other team won"
+        } else {
+            "It was a tie."
+        },
+                                         mid_y - 3);
+
+        print_horizontally_centered_line(platform, &inner, "Final Score", mid_y - 1);
+        print_horizontally_centered_line(platform,
+                                         &inner,
+                                         &format!("{}:{}",
+                                                  state.player_points,
+                                                  state.opponent_points),
+                                         mid_y);
+        print_horizontally_centered_line(platform, &inner, "  Us Them", mid_y + 1);
+
+
+        let restart_button = ButtonSpec {
+            x: inner.x + ((inner.w - 14) / 2),
+            y: mid_y + 3,
+            w: 14,
+            h: 3,
+            text: "Restart".to_string(),
+            id: 1223,
+        };
+
+        if do_button(platform,
+                     &mut state.ui_context,
+                     &restart_button,
+                     left_mouse_pressed,
+                     left_mouse_released) {
+            *state = new_state(size);
+        }
+    } else if let Some(declaration) = state.declaration {
         match declaration {
             DeclareStep1 => {
                 draw_subsuit_menu(platform,
@@ -281,6 +309,14 @@ pub fn game_update_and_render(platform: &Platform,
 
         } else {
             match state.menu_state {
+                Quit => {
+                    show_quit_screen(platform,
+                                     state,
+                                     left_mouse_pressed,
+                                     left_mouse_released,
+                                     &inner);
+
+                }
                 Main => {
                     match current_player {
                         TeammatePlayer(ThePlayer) => {
@@ -426,6 +462,32 @@ pub fn game_update_and_render(platform: &Platform,
     }
 
     false
+}
+
+fn show_quit_screen(platform: &Platform,
+                    state: &mut State,
+                    left_mouse_pressed: bool,
+                    left_mouse_released: bool,
+                    inner: &SpecRect) {
+    let mid_y = inner.y + (inner.h / 2);
+    print_horizontally_centered_line(platform, &inner, "Press Esc again to Quit", mid_y);
+
+    let resume = ButtonSpec {
+        x: inner.x + ((inner.w - 14) / 2),
+        y: mid_y + 3,
+        w: 14,
+        h: 3,
+        text: "Resume".to_string(),
+        id: 1223,
+    };
+
+    if do_button(platform,
+                 &mut state.ui_context,
+                 &resume,
+                 left_mouse_pressed,
+                 left_mouse_released) {
+        state.menu_state = Main;
+    }
 }
 
 fn get_opposite_team(player: Player) -> Vec<Player> {
@@ -1176,6 +1238,8 @@ fn note_successful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, val
         }
     }
 
+    infer(state);
+
     set_any_declarations(state);
 }
 
@@ -1186,8 +1250,6 @@ fn note_unsuccessful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, v
         ToOpponent(source, target) => (TeammatePlayer(source), OpponentPlayer(target)),
     };
 
-    //TODO infer who has cards by process of elimination
-
     for memory in get_memories(state).iter_mut() {
         if let Some(knowledge) = memory.get_mut(&target) {
             note_does_not_have(knowledge, suit, value);
@@ -1197,7 +1259,70 @@ fn note_unsuccessful_ask(state: &mut State, ask_vector: AskVector, suit: Suit, v
         }
     }
 
+    infer(state);
+
     set_any_declarations(state);
+}
+
+fn infer(state: &mut State) {
+    for memory in get_memories(state).iter_mut() {
+        let mut eliminated_players_by_card = HashMap::new();
+
+        for &player in Player::all_values().iter() {
+            if let Some(knowledge) = memory.get(&player) {
+                for &fact in knowledge.facts.iter() {
+                    match fact {
+                        KnownNotToHave(suit, value) => {
+                            let mut eliminated_players = eliminated_players_by_card.entry((suit,
+                                                                                           value))
+                                .or_insert(Vec::new());
+
+                            eliminated_players.push(player);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (&(suit, value), players) in
+            eliminated_players_by_card.iter().filter(|&(_, v)| v.len() == 5) {
+            let other_player = get_other_player(players);
+
+            if let Some(knowledge) = memory.get_mut(&other_player) {
+                let mut model_hand = &mut knowledge.model_hand;
+                for i in 0..model_hand.len() {
+                    match model_hand[i] {
+                        Unknown => {
+                            model_hand[i] = Known(suit, value);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn get_other_player(players: &Vec<Player>) -> Player {
+    let mut all_players = Player::all_values();
+
+    for i in 0..all_players.len() - 1 {
+        if let Some(&player) = players.get(i) {
+            for j in 0..all_players.len() {
+                if player == all_players[j] {
+                    all_players.swap_remove(j);
+                    break;
+                }
+            }
+        }
+    }
+
+    if let Some(&p) = all_players.get(0) {
+        p
+    } else {
+        TeammatePlayer(ThePlayer)
+    }
 }
 
 fn set_any_declarations(state: &mut State) {

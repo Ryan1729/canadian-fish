@@ -85,6 +85,7 @@ pub enum MenuState {
     AskStep2(Opponent),
     AskStep3(Opponent, SubSuit),
     AskStep4(AskVector, Suit, Value),
+    Quit,
 }
 
 #[derive(Copy, Clone)]
@@ -275,6 +276,23 @@ pub struct Card {
     pub value: Value,
 }
 
+impl AllValues for Card {
+    fn all_values() -> Vec<Card> {
+        let mut deck = Vec::new();
+
+        for &suit in Suit::all_values().iter() {
+            for &value in Value::all_values().iter() {
+                deck.push(Card {
+                              suit: suit,
+                              value: value,
+                          });
+            }
+        }
+
+        deck
+    }
+}
+
 impl Ord for Card {
     fn cmp(&self, other: &Card) -> Ordering {
         match self.suit.cmp(&other.suit) {
@@ -296,7 +314,7 @@ impl PartialEq for Card {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -315,6 +333,12 @@ impl fmt::Display for Suit {
                    Hearts => "♥".to_string(),
                    Spades => "♠".to_string(),
                })
+    }
+}
+
+impl AllValues for Suit {
+    fn all_values() -> Vec<Suit> {
+        vec![Clubs, Diamonds, Hearts, Spades]
     }
 }
 
@@ -341,7 +365,7 @@ impl PartialOrd for Suit {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
     Ace,
     Two,
@@ -377,6 +401,24 @@ impl fmt::Display for Value {
                    Queen => "Q".to_string(),
                    King => "K".to_string(),
                })
+    }
+}
+
+impl AllValues for Value {
+    fn all_values() -> Vec<Value> {
+        vec![Ace,
+             Two,
+             Three,
+             Four,
+             Five,
+             Six,
+             Seven,
+             //Eight, //Canadian Fish doesn't use the Eights
+             Nine,
+             Ten,
+             Jack,
+             Queen,
+             King]
     }
 }
 
@@ -449,6 +491,12 @@ pub fn new_memory(player: Player, hand: &Hand) -> Memory {
 
             self_knowledge.model_hand =
                 hand.iter().map(|card| Known(card.suit.clone(), card.value.clone())).collect();
+
+            for card in Card::all_values().iter() {
+                if !hand.contains(card) {
+                    self_knowledge.facts.push(Fact::KnownNotToHave(card.suit, card.value))
+                }
+            }
 
             result.insert(current_player, self_knowledge);
         } else {

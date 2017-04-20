@@ -6,11 +6,12 @@ This is a single-player only version of a six person card game with rules as des
 ##TODO    
 -> other players take turns    
   -> declare
+  -> handle player's team running out of cards
+  -> handle opponent's team running out of cards
     -> handle player running out of cards
       -> skip button
         -> ensure that games actually stop eventually
-    -> handle player's team running out of cards
-    -> handle opponent's team running out of cards
+
   -> stronger AI
     -> process of elimination inference
     -> prefer players who are known to have asked for a particular suit
