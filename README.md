@@ -6,7 +6,7 @@ This is a single-player only version of a six person card game with rules as des
 
 This is currently playable/winnable but tere are several potential improvements
 
-##TODO    
+## TODO    
 -> other players take turns    
   -> declare
   -> handle player's team running out of cards
