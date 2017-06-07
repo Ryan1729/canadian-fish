@@ -159,14 +159,26 @@ pub fn game_update_and_render(platform: &Platform,
         cross_mode_event_handling(platform, state, event);
 
         match *event {
-            Event::KeyPressed { key: KeyCode::MouseLeft, ctrl: _, shift: _ } => {
+            Event::KeyPressed {
+                key: KeyCode::MouseLeft,
+                ctrl: _,
+                shift: _,
+            } => {
                 left_mouse_pressed = true;
             }
-            Event::KeyReleased { key: KeyCode::MouseLeft, ctrl: _, shift: _ } => {
+            Event::KeyReleased {
+                key: KeyCode::MouseLeft,
+                ctrl: _,
+                shift: _,
+            } => {
                 left_mouse_released = true;
             }
             Event::Close |
-            Event::KeyReleased { key: KeyCode::Escape, ctrl: _, shift: _ } => {
+            Event::KeyReleased {
+                key: KeyCode::Escape,
+                ctrl: _,
+                shift: _,
+            } => {
                 match state.menu_state {
                     Quit => return true,
                     _ => state.menu_state = Quit,
@@ -215,18 +227,18 @@ pub fn game_update_and_render(platform: &Platform,
                                          if state.player_points > state.opponent_points {
                                              "Your team won"
                                          } else if state.player_points < state.opponent_points {
-            "The other team won"
-        } else {
-            "It was a tie."
-        },
+                                             "The other team won"
+                                         } else {
+                                             "It was a tie."
+                                         },
                                          mid_y - 3);
 
         print_horizontally_centered_line(platform, &inner, "Final Score", mid_y - 1);
         print_horizontally_centered_line(platform,
                                          &inner,
                                          &format!("{}:{}",
-                                                  state.player_points,
-                                                  state.opponent_points),
+                                                 state.player_points,
+                                                 state.opponent_points),
                                          mid_y);
         print_horizontally_centered_line(platform, &inner, "  Us Them", mid_y + 1);
 
@@ -256,9 +268,9 @@ pub fn game_update_and_render(platform: &Platform,
                                   left_mouse_pressed,
                                   left_mouse_released,
                                   &|state, subsuit| {
-                                       state.declaration = Some(DeclareStep2(subsuit,
-                                                                             [ThePlayer; 6]));
-                                   },
+                                      state.declaration = Some(DeclareStep2(subsuit,
+                                                                            [ThePlayer; 6]));
+                                  },
                                   true)
             }
             DeclareStep2(subsuit, teammates) => {
@@ -352,8 +364,8 @@ pub fn game_update_and_render(platform: &Platform,
                                       left_mouse_pressed,
                                       left_mouse_released,
                                       &|state, subsuit| {
-                                           state.menu_state = AskStep3(opponent, subsuit);
-                                       },
+                                          state.menu_state = AskStep3(opponent, subsuit);
+                                      },
                                       false)
                 }
                 AskStep3(opponent, subsuit) => {
@@ -474,23 +486,25 @@ fn guess_declaration(state: &mut State) -> Declaration {
 
     let mut declarations = Vec::new();
 
-    let available_subsuits: Vec<SubSuit> =
-        SubSuit::all_values().into_iter().filter(|&s| subsuit_is_in_play(state, s)).collect();
+    let available_subsuits: Vec<SubSuit> = SubSuit::all_values()
+        .into_iter()
+        .filter(|&s| subsuit_is_in_play(state, s))
+        .collect();
     for &(hand, player) in cpu_hands(state).iter() {
         for &subsuit in available_subsuits.iter() {
             let mut guessed_owners = Vec::new();
             let pairs = pairs_from_subsuit(subsuit);
             'pairs: for (suit, value) in pairs {
                 if hand.contains(&Card {
-                                      suit: suit,
-                                      value: value,
-                                  }) {
+                                     suit: suit,
+                                     value: value,
+                                 }) {
                     guessed_owners.push(player);
                     continue;
                 }
                 for current_player in Player::all_values() {
-                    if let Some(knowledge) =
-                        get_memory(state, player).and_then(|m| m.get(&current_player)) {
+                    if let Some(knowledge) = get_memory(state, player)
+                           .and_then(|m| m.get(&current_player)) {
                         if knowledge.model_hand.contains(&Known(suit, value)) {
                             guessed_owners.push(player);
                             continue 'pairs;
@@ -499,7 +513,9 @@ fn guess_declaration(state: &mut State) -> Declaration {
                 }
 
                 //TODO better guessing
-                let guess = *guessed_owners.get(guessed_owners.len() - 1).unwrap_or(&player);
+                let guess = *guessed_owners
+                                 .get(guessed_owners.len() - 1)
+                                 .unwrap_or(&player);
                 guessed_owners.push(guess);
             }
 
@@ -566,8 +582,18 @@ fn show_quit_screen(platform: &Platform,
 
 fn get_opposite_team(player: Player) -> Vec<Player> {
     match player {
-        TeammatePlayer(_) => Opponent::all_values().iter().map(|&o| OpponentPlayer(o)).collect(),
-        OpponentPlayer(_) => Teammate::all_values().iter().map(|&t| TeammatePlayer(t)).collect(),
+        TeammatePlayer(_) => {
+            Opponent::all_values()
+                .iter()
+                .map(|&o| OpponentPlayer(o))
+                .collect()
+        }
+        OpponentPlayer(_) => {
+            Teammate::all_values()
+                .iter()
+                .map(|&t| TeammatePlayer(t))
+                .collect()
+        }
     }
 }
 
@@ -585,7 +611,8 @@ fn get_ask_info(state: &mut State, player: Player) -> Option<(AskVector, Suit, V
     };
 
     let mut other_team: Vec<Player> = get_opposite_team(player);
-    other_team = other_team.iter()
+    other_team = other_team
+        .iter()
         .map(|&p| p)
         .filter(|&p| player_hand(state, p).len() > 0)
         .collect();
@@ -629,8 +656,8 @@ fn get_ask_info(state: &mut State, player: Player) -> Option<(AskVector, Suit, V
             }
         }
 
-        Some((make_ask_vector(player, best_so_far.0).unwrap_or(ToOpponent(ThePlayer,
-                                                                          OpponentZero)),
+        Some((make_ask_vector(player, best_so_far.0)
+                  .unwrap_or(ToOpponent(ThePlayer, OpponentZero)),
               (best_so_far.1).0,
               (best_so_far.1).1))
     } else {
@@ -708,7 +735,9 @@ fn get_possible_target_pairs(hand: &Hand) -> Vec<(Suit, Value)> {
         let pairs = pairs_from_subsuit(subsuit);
 
         if has_subsuit(hand, subsuit) {
-            result.extend(pairs.iter().filter(|&&(suit, value)| {
+            result.extend(pairs
+                              .iter()
+                              .filter(|&&(suit, value)| {
 
                 for card in hand.iter() {
                     if card.suit == suit && card.value == value {
@@ -743,13 +772,15 @@ fn get_available_teammate(state: &State,
     //Yes there is some duplication, but it means we don't have to futz around
     //with trait object types.
     if let Some(excluded) = exclude {
-        teammates.iter()
+        teammates
+            .iter()
             .filter(|&&t| excluded != t)
             .filter(|&&t| teammate_hand(state, t).len() > 0)
             .next()
             .cloned()
     } else {
-        teammates.iter()
+        teammates
+            .iter()
             .filter(|&&t| teammate_hand(state, t).len() > 0)
             .next()
             .cloned()
@@ -768,13 +799,15 @@ fn get_available_opponent(state: &State,
     };
 
     if let Some(excluded) = exclude {
-        opponents.iter()
+        opponents
+            .iter()
             .filter(|&&t| excluded != t)
             .filter(|&&t| opponent_hand(state, t).len() > 0)
             .next()
             .cloned()
     } else {
-        opponents.iter()
+        opponents
+            .iter()
             .filter(|&&t| opponent_hand(state, t).len() > 0)
             .next()
             .cloned()
@@ -804,7 +837,11 @@ const DECLARE_BUTTON_WIDTH: i32 = 11;
 
 fn cross_mode_event_handling(platform: &Platform, state: &mut State, event: &Event) {
     match *event {
-        Event::KeyPressed { key: KeyCode::R, ctrl: true, shift: _ } => {
+        Event::KeyPressed {
+            key: KeyCode::R,
+            ctrl: true,
+            shift: _,
+        } => {
             println!("reset");
             *state = new_state((platform.size)());
         }
@@ -979,7 +1016,8 @@ fn draw_teammate_selection(platform: &Platform,
 
     let teammates = Teammate::all_values();
 
-    let filtered_teammates: Vec<&Teammate> = teammates.iter()
+    let filtered_teammates: Vec<&Teammate> = teammates
+        .iter()
         .filter(|&&t| ThePlayer != t)
         .filter(|&&t| teammate_hand(state, t).len() > 0)
         .collect();
@@ -1348,8 +1386,8 @@ fn infer(state: &mut State) {
                 for &fact in knowledge.facts.iter() {
                     match fact {
                         KnownNotToHave(suit, value) => {
-                            let mut eliminated_players = eliminated_players_by_card.entry((suit,
-                                                                                           value))
+                            let mut eliminated_players = eliminated_players_by_card
+                                .entry((suit, value))
                                 .or_insert(Vec::new());
 
                             eliminated_players.push(player);
@@ -1360,7 +1398,9 @@ fn infer(state: &mut State) {
         }
 
         for (&(suit, value), players) in
-            eliminated_players_by_card.iter().filter(|&(_, v)| v.len() == 5) {
+            eliminated_players_by_card
+                .iter()
+                .filter(|&(_, v)| v.len() == 5) {
             let other_player = get_other_player(players);
 
             if let Some(knowledge) = memory.get_mut(&other_player) {
@@ -1724,10 +1764,10 @@ fn draw_declare_result(platform: &Platform,
                 print_horizontally_centered_line(platform,
                                                  &rect,
                                                  &format!("{} said that {} had the {} of {}",
-                                                          declarer.to_string(),
-                                                          teammate,
-                                                          value,
-                                                          suit),
+                                                         declarer.to_string(),
+                                                         teammate,
+                                                         value,
+                                                         suit),
                                                  y);
 
                 let result_str = if has_card(teammate_hand(state, teammate), suit, value) {
@@ -1751,10 +1791,10 @@ fn draw_declare_result(platform: &Platform,
                 print_horizontally_centered_line(platform,
                                                  &rect,
                                                  &format!("{} said that {} had the {} of {}",
-                                                          declarer.to_string(),
-                                                          opponent,
-                                                          value,
-                                                          suit),
+                                                         declarer.to_string(),
+                                                         opponent,
+                                                         value,
+                                                         suit),
                                                  y);
 
                 let result_str = if has_card(opponent_hand(state, opponent), suit, value) {
@@ -2155,18 +2195,12 @@ pub fn inside_rect(point: Point, x: i32, y: i32, w: i32, h: i32) -> bool {
 const CARD_WIDTH: i32 = 16;
 const CARD_HEIGHT: i32 = 12;
 
-const CARD_MOUSE_X_OFFSET: i32 = -CARD_WIDTH / 2;
-const CARD_MOUSE_Y_OFFSET: i32 = 0;
-
-
 fn draw_card(platform: &Platform, (x, y): (i32, i32), card: &Card) {
     draw_rect(platform, x, y, CARD_WIDTH, CARD_HEIGHT);
 
     (platform.print_xy)(x + 1, y + 1, &card.value.to_string());
     (platform.print_xy)(x + 1, y + 2, &card.suit.to_string());
 }
-
-
 
 fn draw_rect(platform: &Platform, x: i32, y: i32, w: i32, h: i32) {
     draw_rect_with(platform,
