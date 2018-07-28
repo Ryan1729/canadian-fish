@@ -2140,7 +2140,27 @@ fn do_button(platform: &Platform,
         draw_rect(platform, spec.x, spec.y, spec.w, spec.h);
     }
 
-    print_centered_line(platform, spec, &spec.text);
+    let text = &spec.text;
+
+    let x_ = if let Some(given_x) = None {
+        given_x
+    } else {
+        let rect_middle = spec.x + (spec.w / 2);
+
+        rect_middle - (text.len() as f32 / 2.0) as i32
+    };
+
+    let y_ = if let Some(given_y) = None {
+        given_y
+    } else {
+        spec.y + (spec.h / 2)
+
+    };
+
+    (platform.print_xy)(x_, y_, &text);
+    //No idea why the above works but this commented out bit doesn't.
+    //I guess the AsRef<SpecRect> impl is broken?
+    //print_centered_line(platform, spec, &spec.text);
 
     return result;
 }
@@ -2182,7 +2202,7 @@ fn print_line_in_rect<T: AsRef<SpecRect>>(platform: &Platform,
         rect.y + (rect.h / 2)
 
     };
-
+    
     (platform.print_xy)(x_, y_, &text);
 }
 
