@@ -893,6 +893,7 @@ impl AsRef<SpecRect> for SpecRect {
 //NOTE(Ryan1729): The AsRef impl below relies on ButtonSpec having
 // the same ordering for x,y,w and h as SpecRect, and that they are
 // at the top!
+#[repr(C)]
 pub struct ButtonSpec {
     pub x: i32,
     pub y: i32,
@@ -2202,7 +2203,7 @@ fn print_line_in_rect<T: AsRef<SpecRect>>(platform: &Platform,
         rect.y + (rect.h / 2)
 
     };
-    
+
     (platform.print_xy)(x_, y_, &text);
 }
 
